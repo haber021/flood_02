@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Edit Your Profile</h5>
+                    <a href="{% url 'profile' %}" class="btn btn-light btn-sm">Back to Profile</a>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'edit_profile' %}">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> Please correct the errors below.
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <!-- Personal Information -->
+                            <div class="col-md-6">
+                                <h5>Personal Information</h5>
+                                <hr>
+                                
+                                <div class="mb-3">
+                                    <label for="id_first_name" class="form-label">First Name</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.first_name.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_last_name" class="form-label">Last Name</label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.last_name.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_email" class="form-label">Email</label>
+                                    {{ form.email }}
+                                    {% if form.email.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.email.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_phone_number" class="form-label">Phone Number</label>
+                                    {{ form.phone_number }}
+                                    {% if form.phone_number.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.phone_number.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Location and Role Information -->
+                            <div class="col-md-6">
+                                <h5>Location and Role</h5>
+                                <hr>
+                                
+                                <div class="mb-3">
+                                    <label for="id_role" class="form-label">Role</label>
+                                    {{ form.role }}
+                                    {% if form.role.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.role.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_municipality" class="form-label">Municipality</label>
+                                    {{ form.municipality }}
+                                    {% if form.municipality.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.municipality.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_barangay" class="form-label">Barangay</label>
+                                    {{ form.barangay }}
+                                    {% if form.barangay.errors %}
+                                        <div class="text-danger mt-1">
+                                            {{ form.barangay.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <h5 class="mt-4">Notification Preferences</h5>
+                                <hr>
+                                
+                                <div class="mb-3 form-check">
+                                    {{ form.receive_alerts }}
+                                    <label class="form-check-label" for="id_receive_alerts">Receive Flood Alerts</label>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    {{ form.receive_sms }}
+                                    <label class="form-check-label" for="id_receive_sms">Receive SMS Notifications</label>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    {{ form.receive_email }}
+                                    <label class="form-check-label" for="id_receive_email">Receive Email Notifications</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                            <a href="{% url 'profile' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add JavaScript to update barangay options when municipality changes
+    document.addEventListener('DOMContentLoaded', function() {
+        const municipalitySelect = document.getElementById('id_municipality');
+        const barangaySelect = document.getElementById('id_barangay');
+        
+        // Function to update barangay dropdown based on selected municipality
+        function updateBarangays() {
+            const municipalityId = municipalitySelect.value;
+            
+            // Clear barangay dropdown
+            barangaySelect.innerHTML = '<option value="">---------</option>';
+            
+            if (municipalityId) {
+                // Fetch barangays for the selected municipality
+                fetch(`/api/barangays/?municipality_id=${municipalityId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Add barangay options
+                        data.results.forEach(barangay => {
+                            const option = document.createElement('option');
+                            option.value = barangay.id;
+                            option.textContent = barangay.name;
+                            barangaySelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching barangays:', error));
+            }
+        }
+        
+        // Add event listener
+        if (municipalitySelect) {
+            municipalitySelect.addEventListener('change', updateBarangays);
+            
+            // Initial load of barangays
+            if (municipalitySelect.value) {
+                updateBarangays();
+            }
+        }
+    });
+</script>
+{% endblock %}

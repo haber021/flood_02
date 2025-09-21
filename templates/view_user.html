@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}View User{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">User Details: {{ viewed_user.username }}</h5>
+                    <div>
+                        <a href="{% url 'edit_user' viewed_user.id %}" class="btn btn-warning btn-sm me-2">Edit User</a>
+                        <a href="{% url 'user_management' %}" class="btn btn-light btn-sm">Back to User List</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Account Information</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-4">Username:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.username }}</dd>
+                                
+                                <dt class="col-sm-4">First Name:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.first_name|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Last Name:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.last_name|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.email|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Role:</dt>
+                                <dd class="col-sm-8">
+                                    {% if viewed_user.profile.role == 'admin' %}
+                                        <span class="badge bg-danger">Administrator</span>
+                                    {% elif viewed_user.profile.role == 'manager' %}
+                                        <span class="badge bg-primary">Flood Manager</span>
+                                    {% elif viewed_user.profile.role == 'officer' %}
+                                        <span class="badge bg-success">Municipal Officer</span>
+                                    {% elif viewed_user.profile.role == 'operator' %}
+                                        <span class="badge bg-warning">System Operator</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Data Viewer</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Staff Status:</dt>
+                                <dd class="col-sm-8">
+                                    {% if viewed_user.is_staff %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-secondary"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Superuser:</dt>
+                                <dd class="col-sm-8">
+                                    {% if viewed_user.is_superuser %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-secondary"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Last Login:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.last_login|date:"F j, Y, g:i a"|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Date Joined:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.date_joined|date:"F j, Y, g:i a" }}</dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Contact and Location Information</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-4">Phone:</dt>
+                                <dd class="col-sm-8">{{ viewed_user.profile.phone_number|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Municipality:</dt>
+                                <dd class="col-sm-8">
+                                    {% if viewed_user.profile.municipality %}
+                                        {{ viewed_user.profile.municipality.name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Barangay:</dt>
+                                <dd class="col-sm-8">
+                                    {% if viewed_user.profile.barangay %}
+                                        {{ viewed_user.profile.barangay.name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                            
+                            <h5 class="mt-4">Notification Preferences</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-8">Receive Flood Alerts:</dt>
+                                <dd class="col-sm-4">
+                                    {% if viewed_user.profile.receive_alerts %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-8">Receive SMS Notifications:</dt>
+                                <dd class="col-sm-4">
+                                    {% if viewed_user.profile.receive_sms %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-8">Receive Email Notifications:</dt>
+                                <dd class="col-sm-4">
+                                    {% if viewed_user.profile.receive_email %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'user_management' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back to User List</a>
+                        <a href="{% url 'edit_user' viewed_user.id %}" class="btn btn-warning"><i class="bi bi-pencil"></i> Edit User</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

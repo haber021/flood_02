@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %} - Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #2563eb;
+        --primary-dark: #1e40af;
+        --secondary: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --success: #10b981;
+        --light: #f8fafc;
+        --dark: #1e293b;
+        --gray: #64748b;
+        --border: #e2e8f0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; color: var(--dark); line-height: 1.6; }
+    .modern-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .modern-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .location-selector { display: flex; align-items: center; gap: 10px; }
+    .location-selector select { padding: 8px 15px; border: 1px solid var(--border); border-radius: 6px; background-color: white; font-family: 'Poppins', sans-serif; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+    .modern-card { background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); padding: 20px; margin-bottom: 20px; }
+    .card-header-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .card-title-modern { font-size: 18px; font-weight: 600; color: var(--dark); }
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .status-normal { background-color: #dcfce7; color: #16a34a; }
+    .status-warning { background-color: #fef3c7; color: #d97706; }
+    .status-danger { background-color: #fee2e2; color: #dc2626; }
+    .weather-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .weather-item { display: flex; flex-direction: column; align-items: center; padding: 15px; background-color: #f8fafc; border-radius: 8px; }
+    .weather-value { font-size: 24px; font-weight: 600; margin: 5px 0; }
+    .weather-label { font-size: 14px; color: var(--gray); }
+    .risk-indicator { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .risk-color { width: 20px; height: 20px; border-radius: 50%; }
+    .risk-low { background-color: var(--success); }
+    .risk-medium { background-color: var(--warning); }
+    .risk-high { background-color: var(--danger); }
+    /* Map container must have explicit height so Leaflet can size tiles correctly */
+    .map-placeholder { width: 100%; height: clamp(260px, 35vh, 520px); background-color: #e2e8f0; border-radius: 8px; margin: 15px 0; display: block; overflow: hidden; }
+    /* Ensure Leaflet map uses full width/height of its container and inherits rounded corners */
+    #flood-map.leaflet-container { width: 100% !important; height: 100% !important; border-radius: 8px; }
+    .alert-card { display: flex; align-items: center; padding: 15px; background-color: #f0f9ff; border-left: 4px solid var(--primary); border-radius: 8px; margin-bottom: 15px; }
+    .alert-icon { margin-right: 15px; font-size: 24px; color: var(--primary); }
+    .chart-container-modern { height: 250px; margin-top: 15px; }
+    .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .data-table th, .data-table td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table th { font-weight: 600; color: var(--gray); font-size: 14px; }
+    .footer-modern { text-align: center; margin-top: 30px; padding: 20px; color: var(--gray); font-size: 14px; border-top: 1px solid var(--border); }
+    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } .weather-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="modern-container">
+    <header class="modern-header">
+        <div class="logo">FloodWatch</div>
+        <div class="location-selector">
+            <span>Current Location:</span>
+            <select id="location-select" aria-label="Select Municipality">
+                <option value="" selected>All Municipalities</option>
+                <!-- Options populated dynamically -->
+            </select>
+            <select id="barangay-select" aria-label="Select Barangay" disabled>
+                <option value="" selected>All Barangays</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <!-- Weather Conditions Card -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Weather Conditions</div>
+            </div>
+            <div class="weather-grid">
+                <div class="weather-item">
+                    <div class="weather-label">Temperature</div>
+                    <div class="weather-value" id="temperature-value">--</div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-label">Humidity</div>
+                    <div class="weather-value" id="humidity-value">--</div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-label">Rainfall</div>
+                    <div class="weather-value" id="rainfall-value">--</div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-label">Water Level</div>
+                    <div class="weather-value" id="water-level-value">--</div>
+                </div>
+                <div class="weather-item">
+                    <div class="weather-label">Wind Speed</div>
+                    <div class="weather-value" id="wind-speed-value">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Status Card -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Alert Status</div>
+                <div class="status-badge status-normal" id="alert-status-badge">Normal</div>
+            </div>
+            <div class="alert-card">
+                <div class="alert-icon">📋</div>
+                <div>
+                    <div class="card-title-modern" id="alert-title">No Active Alerts</div>
+                    <p id="alert-message">The system is monitoring environmental conditions continuously.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flood Risk Map Card -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Flood Risk Map</div>
+            </div>
+            <div id="flood-map" class="map-placeholder">[Interactive Flood Risk Map]</div>
+            <div class="risk-indicator">
+                <div class="risk-color risk-low"></div>
+                <div>Low Risk</div>
+            </div>
+            <div class="risk-indicator">
+                <div class="risk-color risk-medium"></div>
+                <div>Medium Risk</div>
+            </div>
+            <div class="risk-indicator">
+                <div class="risk-color risk-high"></div>
+                <div>High Risk</div>
+            </div>
+            <div style="margin-top: 15px; font-size: 14px; color: var(--gray);">
+                Last updated: <span id="map-last-updated">{{ current_time_manila|default:"--" }}</span>
+            </div>
+        </div>
+
+        <!-- Environmental Data Trends Card -->
+        <div class="modern-card" style="grid-column: span 2;">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Environmental Data Trends</div>
+            </div>
+            <div class="chart-container-modern">
+                <canvas id="trends-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Affected Areas Card -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Affected Areas</div>
+            </div>
+            <p>No barangays currently affected by floods.</p>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Barangay</th>
+                        <th>Population</th>
+                        <th>Risk Level</th>
+                    </tr>
+                </thead>
+                <tbody id="affected-areas-body">
+                    <tr><td colspan="3" style="color: var(--gray)">No barangays currently affected by floods.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-modern">
+        Flood Monitoring System © 2025 | Last updated: {{ current_time_manila|default:"--" }}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/modern_dashboard.js"></script>
+{% endblock %}

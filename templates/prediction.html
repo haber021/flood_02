@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %} - Flood Prediction{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <!-- Current Location Display -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-map-marker-alt me-2 text-danger"></i>
+                            Current Location: <span id="current-location-display">All Areas</span>
+                        </h5>
+                    </div>
+                    <div class="text-muted small" id="data-updated-time">
+                        Last data refresh: {{ current_time|date:"F d, Y H:i" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Flood Prediction System</h2>
+            <p class="text-muted">Analyze historical data and predict potential flooding events</p>
+        </div>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-tint fa-2x text-primary me-3"></i>
+                        <div>
+                            <h6 class="mb-0">24hr Rainfall</h6>
+                            <h4 class="mb-0" id="rainfall-24h">--</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-light">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-water fa-2x text-primary me-3"></i>
+                        <div>
+                            <h6 class="mb-0">Current Water Level</h6>
+                            <h4 class="mb-0" id="current-water-level">--</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="alert alert-info mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                <span>All predictions are based on real-time weather and sensor data with 30-minute updates.</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Historical Data Comparison -->
+        <div class="col-lg-7 col-xxl-8 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Historical Comparison
+                        </h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-light active" id="btn-rainfall-history">Rainfall</button>
+                            <button class="btn btn-light" id="btn-water-level-history">Water Level</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="historical-chart-container" class="responsive-chart" style="width: 100%; margin: 0; height: 350px; border-bottom: 1px solid #eee;">
+                        <canvas id="historical-chart"></canvas>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary active" data-period="7">7 Days</button>
+                            <button class="btn btn-outline-secondary" data-period="30">30 Days</button>
+                            <button class="btn btn-outline-secondary" data-period="365">1 Year</button>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary export-chart" data-chart="historical-chart">
+                            <i class="fas fa-download me-1"></i> Export
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i> Compare current patterns with historical flood events to identify similarities.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Decision Support Suggestion -->
+        <div class="col-lg-5 col-xxl-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>Decision Support Suggestion
+                        </h5>
+                        <span class="badge bg-dark text-warning" id="suggestion-level">Loading...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h6 id="suggestion-subject" class="mb-2">Analyzing historical comparison...</h6>
+                    <p id="suggested-action" class="mb-3 text-muted">Please wait while we compute a recommendation.</p>
+                    <div>
+                        <h6 class="card-title">Reasons</h6>
+                        <ul id="suggestion-reasons" class="mb-0 small">
+                            <li>Loading...</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">Based on Historical Comparison settings on the left.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Model -->
+        <div class="col-lg-5 col-xxl-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Flood Prediction Model
+                        </h5>
+                        <span class="badge bg-warning text-dark" id="prediction-status">Initializing...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="prediction-gauge">
+                            <div class="gauge-circle">
+                                <div class="percentage" id="flood-probability">--</div>
+                                <div class="mask"></div>
+                            </div>
+                            <div class="gauge-label">Flood Probability</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title">Predicted Impact</h6>
+                                    <p class="mb-0" id="prediction-impact">Calculating...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title">Estimated Time of Arrival</h6>
+                                    <p class="mb-0" id="prediction-eta">Calculating...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col">
+                            <div class="card bg-light">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title">Contributing Factors</h6>
+                                    <ul class="mb-0" id="contributing-factors">
+                                        <li>Loading factors...</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Last calculated: <span id="last-prediction-time">--</span></small>
+                        <button class="btn btn-sm btn-primary" id="refresh-prediction">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Affected Barangays -->
+        <div class="col-md-7 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>Potentially Affected Barangays
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Barangay</th>
+                                    <th>Population</th>
+                                    <th>Estimated Risk</th>
+                                    <th>Evacuation Centers</th>
+                                </tr>
+                            </thead>
+                            <tbody id="affected-barangays">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading barangay data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i> Ordered by risk level.
+                        </small>
+                        <button class="btn btn-sm btn-outline-secondary" id="view-all-barangays">
+                            View All Barangays
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Send Alert Form -->
+        <div class="col-md-5 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>Send Emergency Alert
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'create_alert' %}" id="alert-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Alert Title</label>
+                            {{ form.title }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.severity_level.id_for_label }}" class="form-label">Severity Level</label>
+                                {{ form.severity_level }}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.predicted_flood_time.id_for_label }}" class="form-label">Predicted Flood Time</label>
+                                {{ form.predicted_flood_time }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.affected_barangays.id_for_label }}" class="form-label">Affected Barangays</label>
+                            {{ form.affected_barangays }}
+                            <div class="form-text">Hold Ctrl/Cmd to select multiple barangays</div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            {{ form.active }}
+                            <label class="form-check-label" for="{{ form.active.id_for_label }}">Active Alert</label>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Send Emergency Alert
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-exclamation-circle me-1"></i> Alerts will be sent to all emergency contacts in the selected barangays.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/prediction.js"></script>
+{% endblock %}

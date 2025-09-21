@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Profile{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">User Profile</h5>
+                    <a href="{% url 'edit_profile' %}" class="btn btn-light btn-sm">Edit Profile</a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Account Information</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-4">Username:</dt>
+                                <dd class="col-sm-8">{{ user.username }}</dd>
+                                
+                                <dt class="col-sm-4">Full Name:</dt>
+                                <dd class="col-sm-8">{{ user.first_name }} {{ user.last_name }}</dd>
+                                
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">{{ user.email }}</dd>
+                                
+                                <dt class="col-sm-4">Role:</dt>
+                                <dd class="col-sm-8">
+                                    {% if profile.role == 'admin' %}
+                                        <span class="badge bg-danger">Administrator</span>
+                                    {% elif profile.role == 'manager' %}
+                                        <span class="badge bg-primary">Flood Manager</span>
+                                    {% elif profile.role == 'officer' %}
+                                        <span class="badge bg-success">Municipal Officer</span>
+                                    {% elif profile.role == 'operator' %}
+                                        <span class="badge bg-warning">System Operator</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Data Viewer</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-4">Last Login:</dt>
+                                <dd class="col-sm-8">{{ user.last_login|date:"F j, Y, g:i a" }}</dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Contact and Location Information</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-4">Phone:</dt>
+                                <dd class="col-sm-8">{{ profile.phone_number|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Municipality:</dt>
+                                <dd class="col-sm-8">{{ profile.municipality.name|default:"-" }}</dd>
+                                
+                                <dt class="col-sm-4">Barangay:</dt>
+                                <dd class="col-sm-8">{{ profile.barangay.name|default:"-" }}</dd>
+                            </dl>
+                            
+                            <h5 class="mt-4">Notification Preferences</h5>
+                            <hr>
+                            <dl class="row">
+                                <dt class="col-sm-8">Receive Flood Alerts:</dt>
+                                <dd class="col-sm-4">
+                                    {% if profile.receive_alerts %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-8">Receive SMS Notifications:</dt>
+                                <dd class="col-sm-4">
+                                    {% if profile.receive_sms %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-8">Receive Email Notifications:</dt>
+                                <dd class="col-sm-4">
+                                    {% if profile.receive_email %}
+                                        <span class="text-success"><i class="bi bi-check-circle-fill"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="bi bi-x-circle-fill"></i> No</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

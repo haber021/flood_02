@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flood Monitoring System {% block title %}{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if user.is_authenticated and request.path != '/login/' %}
+    <!-- Main Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="me-2">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Flood Monitoring System
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'prediction' %}active{% endif %}" href="{% url 'prediction_page' %}">
+                            <i class="fas fa-chart-line me-1"></i> Prediction
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'barangays' %}active{% endif %}" href="{% url 'barangays_page' %}">
+                            <i class="fas fa-map-marker-alt me-1"></i> Barangays
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'notifications' %}active{% endif %}" href="{% url 'notifications_page' %}">
+                            <i class="fas fa-bell me-1"></i> Notifications
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'config' %}active{% endif %}" href="{% url 'config_page' %}">
+                            <i class="fas fa-cog me-1"></i> Config
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'resilience' %}active{% endif %}" href="{% url 'resilience_scores' %}">
+                            <i class="fas fa-shield-alt me-1"></i> Community Resilience
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="d-flex align-items-center">
+                    <div class="text-white me-3" id="current-time">
+                        <i class="far fa-clock me-1"></i> <span id="date-time-display"></span>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i> {{ user.username }}
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-1"></i> My Profile</a></li>
+                            {% if user.is_superuser or user.profile.role == 'admin' or user.profile.role == 'manager' %}
+                            <li><a class="dropdown-item" href="{% url 'user_management' %}"><i class="fas fa-users me-1"></i> User Management</a></li>
+                            <li><a class="dropdown-item" href="{% url 'add_sensor' %}"><i class="fas fa-plus me-1"></i> Add Sensor</a></li>
+                            <li><a class="dropdown-item" href="{% url 'add_municipality' %}"><i class="fas fa-city me-1"></i> Add Municipality</a></li>
+                            <li><a class="dropdown-item" href="{% url 'add_barangay' %}"><i class="fas fa-map-pin me-1"></i> Add Barangay</a></li>
+                            {% endif %}
+                            {% if user.is_superuser or user.profile.role == 'admin' %}
+                            <li><a class="dropdown-item" href="{% url 'database_management' %}"><i class="fas fa-database me-1"></i> Database Management</a></li>
+                            {% endif %}
+                            {% if user.is_staff %}
+                            <li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="fas fa-tools me-1"></i> Admin Panel</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-1"></i> Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Active Alerts Banner -->
+    <div id="alerts-banner" class="d-none">
+        <div class="alert alert-danger m-0 py-2 px-3 d-flex align-items-center justify-content-between">
+            <div>
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>ACTIVE FLOOD ALERT:</strong> 
+                <span id="alert-message">Emergency flood warning in effect</span>
+            </div>
+            <div>
+                <span id="alert-countdown" class="me-3"></span>
+                <span id="alert-updated">Last updated: <span id="alert-time">Now</span></span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <div class="container-fluid p-0">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show m-0" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% block content %}
+        {% endblock %}
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Chart.js and plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script>
+        // Register the zoom plugin globally
+        if (Chart && Chart.register) {
+            try {
+                // Ensure the plugin is available under the correct name
+                const zoomPlugin = window.ChartZoom || window.chartjs_plugin_zoom;
+                if (zoomPlugin) {
+                    Chart.register(zoomPlugin);
+                    console.log('Chart.js zoom plugin registered successfully');
+                } else {
+                    console.warn('Chart.js zoom plugin not found in global namespace');
+                }
+            } catch (e) {
+                console.error('Failed to register Chart.js zoom plugin:', e);
+            }
+        }
+    </script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Heat Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <!-- Common JavaScript -->
+    <script>
+        // Update date and time display
+        function updateDateTime() {
+            const now = new Date();
+            const dateTimeElement = document.getElementById('date-time-display');
+            if (dateTimeElement) {
+                try {
+                    const manilaFormatter = new Intl.DateTimeFormat('en-GB', {
+                        timeZone: 'Asia/Manila',
+                        year: 'numeric', month: 'numeric', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit',
+                        hour12: false
+                    });
+                    dateTimeElement.textContent = manilaFormatter.format(now);
+                } catch (e) {
+                    dateTimeElement.textContent = now.toLocaleString();
+                }
+            }
+        }
+        
+        // Initialize alerts
+        function checkActiveAlerts() {
+            // Check if alert elements exist on this page
+            const alertsBanner = document.getElementById('alerts-banner');
+            if (!alertsBanner) {
+                // Skip alert checking if alert banner doesn't exist on this page
+                return;
+            }
+            
+            fetch('/api/flood-alerts/?active=true')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        // Sort alerts by severity
+                        const alerts = data.results.sort((a, b) => b.severity_level - a.severity_level);
+                        const highestAlert = alerts[0];
+                        
+                        // Update alert message
+                        const alertMessage = document.getElementById('alert-message');
+                        if (alertMessage) alertMessage.textContent = highestAlert.title;
+                        
+                        // Update countdown if predicted time exists
+                        const alertCountdown = document.getElementById('alert-countdown');
+                        if (alertCountdown) {
+                            if (highestAlert.predicted_flood_time) {
+                                const predictedTime = new Date(highestAlert.predicted_flood_time);
+                                const now = new Date();
+                                const timeRemaining = predictedTime - now;
+                                
+                                if (timeRemaining > 0) {
+                                    const hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+                                    const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                                    alertCountdown.textContent = `ETA: ${hours}h ${minutes}m`;
+                                } else {
+                                    alertCountdown.textContent = 'Impact Imminent';
+                                }
+                            } else {
+                                alertCountdown.textContent = '';
+                            }
+                        }
+                        
+                        // Update last updated time
+                        const alertTime = document.getElementById('alert-time');
+                        if (alertTime) {
+                            const updatedTime = new Date(highestAlert.updated_at);
+                            alertTime.textContent = updatedTime.toLocaleString();
+                        }
+                        
+                        // Show the alert banner
+                        alertsBanner.classList.remove('d-none');
+                        
+                        // Play alert sound if it's a high severity alert (3 or higher)
+                        if (highestAlert.severity_level >= 3) {
+                            playAlertSound();
+                        }
+                    } else {
+                        // Hide the alert banner if no active alerts
+                        alertsBanner.classList.add('d-none');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking alerts:', error.message || 'Unknown error');
+                    // Hide the alert banner on error to prevent stale information
+                    alertsBanner.classList.add('d-none');
+                });
+        }
+        
+        // Play alert sound
+        function playAlertSound() {
+            // Check if this alert has been played recently
+            const lastAlertTime = localStorage.getItem('lastAlertTime');
+            const currentTime = new Date().getTime();
+            
+            // Only play once every 5 minutes
+            if (!lastAlertTime || (currentTime - lastAlertTime > 5 * 60 * 1000)) {
+                const audio = new Audio('https://cdn.freesound.org/previews/250/250629_4486188-lq.mp3');
+                audio.play();
+                localStorage.setItem('lastAlertTime', currentTime);
+            }
+        }
+        
+        // Initialize date/time and alerts
+        document.addEventListener('DOMContentLoaded', function() {
+            if (document.getElementById('date-time-display')) {
+                updateDateTime();
+                setInterval(updateDateTime, 1000);
+            }
+            
+            if (document.getElementById('alerts-banner')) {
+                checkActiveAlerts();
+                // Check for new alerts every 30 seconds
+                setInterval(checkActiveAlerts, 30000);
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Localhost Helper Script -->
+    <script src="/static/js/localhost_helper.js"></script>
+</body>
+</html>

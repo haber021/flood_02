@@ -1,0 +1,42 @@
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1&barangay_id=4
+[Map] Adding municipality filter: Vical
+[Map] Adding barangay filter: Cabaroan
+[Map] Fetching map data with URL: /api/map-data/?municipality_id=1&barangay_id=4
+========== LOCATION CHANGE DETECTED ==========
+Refreshing all data for new location filter:
+Selected Municipality: Vical (ID: 1)
+Selected Barangay: All Barangays
+============================================
+Refreshing map with location filters...
+[Map] Adding municipality filter: Vical
+[Map] Fetching map data with URL: /api/map-data/?municipality_id=1
+[Barangays] Already loaded barangays for municipality ID 1, using cached data
+Failed to execute 'postMessage' on 'Window': Maximum call stack size exceeded
+[Map] Received map data with 3 barangays, 7 sensors, and 3 risk zones
+Error loading map data: 
+TypeError {}
+
+[Map] Received map data with 3 barangays, 7 sensors, and 3 risk zones
+Error loading map data: 
+TypeError {}
+
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Sensor Data] Adding municipality filter: Vical
+[Sensor Data] Fetching latest readings with URL: /api/sensor-data/?limit=5&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1
+[Sensor Data] Adding municipality filter: Vical
+[Sensor Data] Fetching latest readings with URL: /api/sensor-data/?limit=5&municipality_id=1
+[Alerts] Adding municipality filter: Vical
+[Alerts] Fetching alerts with URL: /api/flood-alerts/?active=true&municipality_id=1

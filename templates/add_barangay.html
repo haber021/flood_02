@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="form-card mx-auto">
+        <div class="card-body">
+            <h4 class="card-title">Add Barangay</h4>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_name">Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-map-pin"></i></span>
+                            {{ form.name }}
+                        </div>
+                        {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id_municipality">Municipality</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-city"></i></span>
+                            {{ form.municipality }}
+                        </div>
+                        {% if form.municipality.errors %}
+                            <div class="text-danger small">{{ form.municipality.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_population">Population</label>
+                        {{ form.population }}
+                        {% if form.population.errors %}
+                            <div class="text-danger small">{{ form.population.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id_contact_person">Contact Person</label>
+                        {{ form.contact_person }}
+                        {% if form.contact_person.errors %}
+                            <div class="text-danger small">{{ form.contact_person.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_latitude">Latitude</label>
+                        {{ form.latitude }}
+                        {% if form.latitude.errors %}
+                            <div class="text-danger small">{{ form.latitude.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="id_longitude">Longitude</label>
+                        {{ form.longitude }}
+                        {% if form.longitude.errors %}
+                            <div class="text-danger small">{{ form.longitude.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Optionally provide a quick link to create a Municipality without leaving this page -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#createMunicipalityModal">
+                            <i class="fas fa-plus me-1"></i> Create Municipality
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-actions mt-3">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+                                        <button id="submit-barangay" type="button" class="btn btn-primary">Create Barangay</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container for feedback -->
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;"></div>
+
+<!-- Create Municipality Modal -->
+<div class="modal fade" id="createMunicipalityModal" tabindex="-1" aria-labelledby="createMunicipalityLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createMunicipalityLabel">Create Municipality</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-municipality-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_name_modal" class="form-label">Name</label>
+                        <input type="text" name="name" id="id_name_modal" class="form-control" placeholder="Municipality name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_province_modal" class="form-label">Province</label>
+                        <input type="text" name="province" id="id_province_modal" class="form-control" placeholder="Province (optional)">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_latitude_modal" class="form-label">Latitude</label>
+                        <input type="text" name="latitude" id="id_latitude_modal" class="form-control" placeholder="Latitude (optional)">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_longitude_modal" class="form-label">Longitude</label>
+                        <input type="text" name="longitude" id="id_longitude_modal" class="form-control" placeholder="Longitude (optional)">
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="on" id="id_is_active_modal" name="is_active" checked>
+                        <label class="form-check-label" for="id_is_active_modal">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="create-municipality-button" class="btn btn-primary">Create Municipality</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+            <script src="/static/js/create_location.js"></script>
+    <script>
+        (function(){
+            // If municipality_id is provided as a query param, pre-select it
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const mid = params.get('municipality_id');
+                if (mid) {
+                    const sel = document.getElementById('id_municipality');
+                    if (sel) {
+                        sel.value = mid;
+                    }
+                }
+            } catch(e) {}
+            // When municipality modal create button is clicked
+            document.getElementById('create-municipality-button').addEventListener('click', function(){
+                const form = document.getElementById('create-municipality-form');
+                // Call the helper
+                window.createLocation.createMunicipality(form, function(err, res){
+                    if (!err && res && res.success){
+                        // Close modal
+                        const modalEl = document.getElementById('createMunicipalityModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modal.hide();
+
+                        // Add new municipality option to select
+                        const sel = document.getElementById('id_municipality');
+                        if (sel){
+                            const opt = document.createElement('option');
+                            opt.value = res.id;
+                            opt.textContent = res.name;
+                            opt.selected = true;
+                            sel.appendChild(opt);
+                        }
+                    }
+                });
+            });
+
+            // Submit barangay form via AJAX when pressing the button
+            document.getElementById('submit-barangay').addEventListener('click', function(){
+                const form = document.querySelector('form');
+                window.createLocation.createBarangay(form, function(err, res){
+                    if (!err && res && res.success){
+                        // After creating a barangay, redirect to Add Sensor page so user can register sensor for it
+                        try {
+                            const addSensorUrl = '{% url "add_sensor" %}';
+                            // Pass barangay id and municipality id to prefill the Add Sensor form
+                            const barangayId = res.id;
+                            const sel = document.getElementById('id_municipality');
+                            const municipalityId = sel ? sel.value : '';
+                            const params = new URLSearchParams();
+                            if (municipalityId) params.set('municipality_id', municipalityId);
+                            if (barangayId) params.set('barangay_id', barangayId);
+                            window.location.href = addSensorUrl + '?' + params.toString();
+                        } catch(e){
+                            // Fallback to barangays list
+                            window.location.href = '{% url "barangays_page" %}';
+                        }
+                    }
+                });
+            });
+        })();
+    </script>
+{% endblock %}
+{% endblock %}

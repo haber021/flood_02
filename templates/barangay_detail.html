@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %} - {{ barangay.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'barangays_page' %}">Barangays</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ barangay.name }}</li>
+        </ol>
+    </nav>
+    
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h2>{{ barangay.name }}</h2>
+        <div>
+            <button class="btn btn-sm btn-outline-primary me-2" id="print-details">
+                <i class="fas fa-print me-1"></i> Print
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="export-details">
+                <i class="fas fa-download me-1"></i> Export
+            </button>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Barangay Details -->
+        <div class="col-lg-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Basic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-muted">Population:</div>
+                            <div class="fw-bold">{{ barangay.population }}</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-muted">Area:</div>
+                            <div class="fw-bold">{{ barangay.area_sqkm }} sq. km</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-muted">Coordinates:</div>
+                            <div class="fw-bold">{{ barangay.latitude }}, {{ barangay.longitude }}</div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="card-subtitle mb-3">Contact Information</h6>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-muted">Contact Person:</div>
+                            <div class="fw-bold">{{ barangay.contact_person|default:"--" }}</div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <div class="text-muted">Contact Number:</div>
+                            <div class="fw-bold">{{ barangay.contact_number|default:"--" }}</div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="card-subtitle mb-3">Emergency Contacts</h6>
+                    {% if contacts %}
+                        <div class="list-group small">
+                            {% for contact in contacts %}
+                                <div class="list-group-item p-2">
+                                    <div class="fw-bold">{{ contact.name }} <span class="text-muted">({{ contact.role }})</span></div>
+                                    <div>
+                                        <i class="fas fa-phone-alt me-1 text-secondary"></i> {{ contact.phone }}
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-envelope me-1 text-secondary"></i> {{ contact.email }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            No emergency contacts found.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Location Map -->
+        <div class="col-lg-8 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>Location & Evacuation Centers
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="barangay-map" style="height: 400px;"></div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="map-legend">
+                            <span class="me-3"><i class="fas fa-home text-primary me-1"></i> Barangay Office</span>
+                            <span class="me-3"><i class="fas fa-hospital text-success me-1"></i> Evacuation Center</span>
+                        </div>
+                        <small class="text-muted">Click markers for more information</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Flood History -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Flood History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="flood-history-chart" height="250"></canvas>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i> Shows historical flood events over the past 5 years.
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert History -->
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>Recent Alerts
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Alert</th>
+                                    <th>Level</th>
+                                    <th>Issued</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if alerts %}
+                                    {% for alert in alerts|slice:":5" %}
+                                        <tr>
+                                            <td>{{ alert.title }}</td>
+                                            <td>
+                                                {% if alert.severity_level == 5 %}
+                                                    <span class="badge rounded-pill bg-danger">Catastrophic</span>
+                                                {% elif alert.severity_level == 4 %}
+                                                    <span class="badge rounded-pill bg-danger">Emergency</span>
+                                                {% elif alert.severity_level == 3 %}
+                                                    <span class="badge rounded-pill bg-warning">Warning</span>
+                                                {% elif alert.severity_level == 2 %}
+                                                    <span class="badge rounded-pill bg-warning">Watch</span>
+                                                {% elif alert.severity_level == 1 %}
+                                                    <span class="badge rounded-pill bg-info">Advisory</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ alert.issued_at|date:"M d, Y H:i" }}</td>
+                                            <td>
+                                                {% if alert.active %}
+                                                    <span class="badge bg-danger">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Closed</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">No alerts have been issued for this barangay.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i> Showing the 5 most recent alerts.
+                        </small>
+                        <a href="{% url 'notifications_page' %}" class="btn btn-sm btn-outline-primary">
+                            View All Alerts
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize barangay map
+        const map = L.map('barangay-map').setView([{{ barangay.latitude }}, {{ barangay.longitude }}], 14);
+        
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Add barangay marker
+        const barangayIcon = L.divIcon({
+            html: '<i class="fas fa-home fa-2x text-primary"></i>',
+            className: 'custom-div-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+        
+        L.marker([{{ barangay.latitude }}, {{ barangay.longitude }}], {icon: barangayIcon})
+            .addTo(map)
+            .bindPopup('<strong>{{ barangay.name }}</strong><br>Barangay Office')
+            .openPopup();
+        
+        // Sample evacuation centers - in a real app, these would come from the database
+        const evacuationCenters = [
+            {
+                name: "{{ barangay.name }} Elementary School",
+                lat: {{ barangay.latitude|add:0.01 }},
+                lng: {{ barangay.longitude|add:0.01 }},
+                capacity: 500
+            },
+            {
+                name: "Community Center",
+                lat: {{ barangay.latitude|add:-0.01 }},
+                lng: {{ barangay.longitude|add:-0.005 }},
+                capacity: 300
+            }
+        ];
+        
+        // Add evacuation center markers
+        const evacuationIcon = L.divIcon({
+            html: '<i class="fas fa-hospital fa-2x text-success"></i>',
+            className: 'custom-div-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+        
+        evacuationCenters.forEach(center => {
+            L.marker([center.lat, center.lng], {icon: evacuationIcon})
+                .addTo(map)
+                .bindPopup(`<strong>${center.name}</strong><br>Capacity: ${center.capacity} people`);
+        });
+        
+        // Initialize flood history chart
+        const floodHistoryChart = new Chart(
+            document.getElementById('flood-history-chart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: ['2018', '2019', '2020', '2021', '2022'],
+                    datasets: [{
+                        label: 'Flood Events',
+                        data: [2, 3, 1, 4, 2],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgb(54, 162, 235)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.y} flood event(s)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            },
+                            title: {
+                                display: true,
+                                text: 'Number of Events'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Year'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Print functionality
+        document.getElementById('print-details').addEventListener('click', function() {
+            window.print();
+        });
+        
+        // Export functionality
+        document.getElementById('export-details').addEventListener('click', function() {
+            alert('Export functionality would generate a PDF or CSV file with all barangay details.');
+        });
+    });
+</script>
+{% endblock %}

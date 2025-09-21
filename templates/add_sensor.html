@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Add Sensor{% endblock %}
+
+{% block content %}
+<div class="container py-4 form-card">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Add New Sensor</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_name">Name:</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-tag"></i></span>
+                            {{ form.name }}
+                        </div>
+                        {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id_sensor_type">Sensor type:</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-thermometer-half"></i></span>
+                            {{ form.sensor_type }}
+                        </div>
+                        {% if form.sensor_type.errors %}
+                            <div class="text-danger small">{{ form.sensor_type.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Coordinates:</label>
+                        <div class="alert alert-info py-2" role="alert" style="font-size: 0.95rem;">
+                            Latitude and Longitude will be set automatically based on the selected Barangay.
+                        </div>
+                        <div style="display:none;">{{ form.latitude }}{{ form.longitude }}</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div class="form-check mt-2">
+                            {{ form.active }} <label class="form-check-label ms-2" for="id_active">Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_municipality">Municipality:</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-city"></i></span>
+                            {{ form.municipality }}
+                        </div>
+                        {% if form.municipality.errors %}
+                            <div class="text-danger small">{{ form.municipality.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group" style="display:none;">
+                        {{ form.barangay }}
+                        {% if form.barangay.errors %}
+                            <div class="text-danger small">{{ form.barangay.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1 1 100%;">
+                        <label for="id_description">Description:</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small">{{ form.description.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Create Sensor</button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary ms-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    const muniSel = document.getElementById('id_municipality');
+    const brgySel = document.getElementById('id_barangay'); // hidden
+    const latInput = document.getElementById('id_latitude'); // hidden
+    const lngInput = document.getElementById('id_longitude'); // hidden
+
+    // Resolve barangay from URL or previously selected context
+    const params = new URLSearchParams(window.location.search);
+    const urlBarangayId = params.get('barangay_id');
+    const ctxBarangayId = sessionStorage.getItem('dashboard_barangay_id') || sessionStorage.getItem('barangays_page_brgy_id');
+    const chosenBarangayId = urlBarangayId || ctxBarangayId;
+
+    if (chosenBarangayId) {
+      fetch(`/api/barangays/${encodeURIComponent(chosenBarangayId)}/`)
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(b => {
+          if (!b) return;
+          if (brgySel) brgySel.value = b.id;
+          if (latInput && b.latitude != null) latInput.value = b.latitude;
+          if (lngInput && b.longitude != null) lngInput.value = b.longitude;
+          if (muniSel && b.municipality) {
+            muniSel.value = b.municipality; // DRF returns municipality id in field `municipality`
+          }
+        })
+        .catch(() => {});
+    }
+  });
+})();
+</script>
+{% endblock %}

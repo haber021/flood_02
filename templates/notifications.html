@@ -1,0 +1,851 @@
+{% extends "base.html" %}
+
+{% block title %} - Notifications Center{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Notifications Center</h2>
+            <p class="text-muted">Manage flood alerts, notifications, and emergency contacts</p>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Alert History -->
+        <div class="col-lg-8 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Alert History
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="alertFilterDropdown" data-bs-toggle="dropdown">
+                                Filter
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="alertFilterDropdown">
+                                <li><a class="dropdown-item alert-filter active" data-filter="all" href="#">All Alerts</a></li>
+                                <li><a class="dropdown-item alert-filter" data-filter="active" href="#">Active Only</a></li>
+                                <li><a class="dropdown-item alert-filter" data-filter="inactive" href="#">Inactive Only</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item severity-filter" data-level="5" href="#">Catastrophic</a></li>
+                                <li><a class="dropdown-item severity-filter" data-level="4" href="#">Emergency</a></li>
+                                <li><a class="dropdown-item severity-filter" data-level="3" href="#">Warning</a></li>
+                                <li><a class="dropdown-item severity-filter" data-level="2" href="#">Watch</a></li>
+                                <li><a class="dropdown-item severity-filter" data-level="1" href="#">Advisory</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="alerts-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                    <th>Issued At</th>
+                                    <th>Issued By</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if alerts %}
+                                    {% for alert in alerts %}
+                                        <tr data-severity="{{ alert.severity_level }}" data-status="{% if alert.active %}active{% else %}inactive{% endif %}">
+                                            <td>{{ alert.title }}</td>
+                                            <td>
+                                                {% if alert.severity_level == 5 %}
+                                                    <span class="badge rounded-pill bg-danger">Catastrophic</span>
+                                                {% elif alert.severity_level == 4 %}
+                                                    <span class="badge rounded-pill bg-danger">Emergency</span>
+                                                {% elif alert.severity_level == 3 %}
+                                                    <span class="badge rounded-pill bg-warning">Warning</span>
+                                                {% elif alert.severity_level == 2 %}
+                                                    <span class="badge rounded-pill bg-warning">Watch</span>
+                                                {% elif alert.severity_level == 1 %}
+                                                    <span class="badge rounded-pill bg-info">Advisory</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if alert.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ alert.issued_at|date:"M d, Y H:i" }}</td>
+                                            <td>{{ alert.issued_by.username|default:"System" }}</td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary view-alert" data-id="{{ alert.id }}">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if alert.active %}
+                                                    <button class="btn btn-sm btn-outline-warning toggle-alert" data-id="{{ alert.id }}" data-active="true">
+                                                        <i class="fas fa-pause"></i>
+                                                    </button>
+                                                {% else %}
+                                                    <button class="btn btn-sm btn-outline-success toggle-alert" data-id="{{ alert.id }}" data-active="false">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">No alerts have been issued yet.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-muted">
+                            <i class="fas fa-info-circle me-1"></i> Click on an alert to view details
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="export-alerts">
+                            <i class="fas fa-download me-1"></i> Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification Analytics -->
+        <div class="col-lg-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Notification Analytics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Notification Types Pie Chart -->
+                    <div class="mb-4">
+                        <h6 class="card-subtitle mb-3 text-muted">Notification Types</h6>
+                        <canvas id="notification-types-chart" height="200"></canvas>
+                    </div>
+                    
+                    <!-- Delivery Status Chart -->
+                    <div class="mb-4">
+                        <h6 class="card-subtitle mb-3 text-muted">Delivery Status</h6>
+                        <canvas id="delivery-status-chart" height="200"></canvas>
+                    </div>
+                    
+                    <!-- Summary Stats -->
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="border rounded p-3">
+                                <h3 class="fw-bold text-primary" id="total-notifications">{{ notifications|length }}</h3>
+                                <div class="small text-muted">Total Notifications</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="border rounded p-3">
+                                <h3 class="fw-bold text-success" id="delivery-rate">
+                                    {% if notifications %}
+                                        {% with delivered_count=0 %}
+                                            {% for notification in notifications %}
+                                                {% if notification.status == 'delivered' %}
+                                                    {% with delivered_count=delivered_count|add:1 %}
+                                                    {% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {% if notifications.count > 0 %}
+                                                {{ delivered_count|floatformat:0 }}%
+                                            {% else %}
+                                                0%
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </h3>
+                                <div class="small text-muted">Delivery Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <!-- Notification Logs -->
+        <div class="col-lg-7 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>Notification Logs
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="notification-logs-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Alert</th>
+                                    <th>Recipient</th>
+                                    <th>Sent At</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if notifications %}
+                                    {% for notification in notifications %}
+                                        <tr>
+                                            <td>
+                                                {% if notification.notification_type == 'sms' %}
+                                                    <span class="badge bg-primary">SMS</span>
+                                                {% elif notification.notification_type == 'email' %}
+                                                    <span class="badge bg-success">Email</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">App</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ notification.alert.title }}</td>
+                                            <td>{{ notification.recipient }}</td>
+                                            <td>{{ notification.sent_at|date:"M d, Y H:i" }}</td>
+                                            <td>
+                                                {% if notification.status == 'delivered' %}
+                                                    <span class="badge bg-success">Delivered</span>
+                                                {% elif notification.status == 'sent' %}
+                                                    <span class="badge bg-info">Sent</span>
+                                                {% elif notification.status == 'failed' %}
+                                                    <span class="badge bg-danger">Failed</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">No notification logs found.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="small text-muted">
+                            <i class="fas fa-info-circle me-1"></i> Showing recent notification logs
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" id="refresh-logs">
+                            <i class="fas fa-sync-alt me-1"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Emergency Contacts -->
+        <div class="col-lg-5 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-phone-alt me-2"></i>Emergency Contacts
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Barangay</th>
+                                    <th>Contact</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if contacts %}
+                                    {% for contact in contacts %}
+                                        <tr>
+                                            <td>{{ contact.name }}</td>
+                                            <td>{{ contact.role }}</td>
+                                            <td>{{ contact.barangay.name|default:"All" }}</td>
+                                            <td>
+                                                <div>{{ contact.phone }}</div>
+                                                <div class="small text-muted">{{ contact.email }}</div>
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="mailto:{{ contact.email }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
+                                                <a href="tel:{{ contact.phone }}" class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-phone-alt"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">No emergency contacts found.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-end align-items-center">
+                        <button class="btn btn-sm btn-outline-primary" id="download-contacts">
+                            <i class="fas fa-download me-1"></i> Export Contacts
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert Templates Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Alert Templates
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-danger text-white">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Emergency Alert</h6>
+                                        <button class="btn btn-sm btn-light use-template" data-template="emergency">
+                                            <i class="fas fa-copy me-1"></i> Use
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <strong>EMERGENCY ALERT:</strong> Imminent flooding expected in [LOCATION]. 
+                                        Water levels have reached critical thresholds. Evacuate immediately to designated centers.
+                                        Bring essential items only. Follow instructions from local authorities.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-warning text-dark">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Warning Alert</h6>
+                                        <button class="btn btn-sm btn-light use-template" data-template="warning">
+                                            <i class="fas fa-copy me-1"></i> Use
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <strong>FLOOD WARNING:</strong> Heavy rainfall has caused rising water levels in [LOCATION].
+                                        Prepare for possible flooding. Secure valuables, prepare emergency supplies, and stay tuned for updates.
+                                        Be ready to evacuate if instructed.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-info text-white">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">Advisory Alert</h6>
+                                        <button class="btn btn-sm btn-light use-template" data-template="advisory">
+                                            <i class="fas fa-copy me-1"></i> Use
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        <strong>FLOOD ADVISORY:</strong> Moderate rainfall anticipated in [LOCATION] over the next [TIMEFRAME].
+                                        Minor flooding may occur in low-lying areas. Please monitor local conditions and stay informed
+                                        through official channels.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i> These templates can be used when creating new alerts. Click "Use" to copy the template to the alert form.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Detail Modal -->
+<div class="modal fade" id="alertDetailModal" tabindex="-1" aria-labelledby="alertDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertDetailModalLabel">Alert Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="alert-detail-content">
+                <!-- Will be populated by JavaScript -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading alert details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="update-alert-btn">Update Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Utilities
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        function getCsrfToken() {
+            // Prefer cookie csrftoken; fallback to meta tag or hidden input if present
+            return getCookie('csrftoken') || (document.querySelector('meta[name="csrf-token"]')?.content) || (document.querySelector('[name=csrfmiddlewaretoken]')?.value) || '';
+        }
+        async function fetchBarangayNameMap() {
+            try {
+                const r = await fetch('/api/barangays/?limit=1000');
+                if (!r.ok) return new Map();
+                const j = await r.json();
+                const arr = j.results || [];
+                const map = new Map();
+                arr.forEach(b => map.set(b.id, b.name || `Barangay ${b.id}`));
+                return map;
+            } catch { return new Map(); }
+        }
+        function arrayToCsv(rows) {
+            return rows.map(r => r.map(v => {
+                const s = (v === null || v === undefined) ? '' : String(v);
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                    return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }).join(',')).join('\n');
+        }
+        function download(filename, text) {
+            const a = document.createElement('a');
+            a.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(text));
+            a.setAttribute('download', filename);
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        // Initialize charts
+        const notificationTypeChart = new Chart(
+            document.getElementById('notification-types-chart').getContext('2d'),
+            {
+                type: 'pie',
+                data: {
+                    labels: ['SMS', 'Email', 'App Notification'],
+                    datasets: [{
+                        data: [
+                            {% with sms_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.notification_type == 'sms' %}
+                                        {% with sms_count=sms_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ sms_count }},
+                            {% endwith %}
+                            {% with email_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.notification_type == 'email' %}
+                                        {% with email_count=email_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ email_count }},
+                            {% endwith %}
+                            {% with app_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.notification_type == 'app' %}
+                                        {% with app_count=app_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ app_count }}
+                            {% endwith %}
+                        ],
+                        backgroundColor: ['#0d6efd', '#198754', '#0dcaf0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            }
+        );
+        
+        const deliveryStatusChart = new Chart(
+            document.getElementById('delivery-status-chart').getContext('2d'),
+            {
+                type: 'pie',
+                data: {
+                    labels: ['Delivered', 'Sent', 'Failed', 'Pending'],
+                    datasets: [{
+                        data: [
+                            {% with delivered_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.status == 'delivered' %}
+                                        {% with delivered_count=delivered_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ delivered_count }},
+                            {% endwith %}
+                            {% with sent_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.status == 'sent' %}
+                                        {% with sent_count=sent_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ sent_count }},
+                            {% endwith %}
+                            {% with failed_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.status == 'failed' %}
+                                        {% with failed_count=failed_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ failed_count }},
+                            {% endwith %}
+                            {% with pending_count=0 %}
+                                {% for notification in notifications %}
+                                    {% if notification.status == 'pending' %}
+                                        {% with pending_count=pending_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ pending_count }}
+                            {% endwith %}
+                        ],
+                        backgroundColor: ['#198754', '#0dcaf0', '#dc3545', '#ffc107']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Alert filtering
+        document.querySelectorAll('.alert-filter').forEach(filter => {
+            filter.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Update active class
+                document.querySelectorAll('.alert-filter').forEach(f => f.classList.remove('active'));
+                this.classList.add('active');
+                
+                const filterType = this.getAttribute('data-filter');
+                const rows = document.querySelectorAll('#alerts-table tbody tr');
+                
+                rows.forEach(row => {
+                    if (filterType === 'all') {
+                        row.style.display = '';
+                    } else {
+                        const status = row.getAttribute('data-status');
+                        row.style.display = (status === filterType) ? '' : 'none';
+                    }
+                });
+            });
+        });
+        
+        // Severity filtering
+        document.querySelectorAll('.severity-filter').forEach(filter => {
+            filter.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const severityLevel = this.getAttribute('data-level');
+                const rows = document.querySelectorAll('#alerts-table tbody tr');
+                
+                rows.forEach(row => {
+                    const severity = row.getAttribute('data-severity');
+                    row.style.display = (severity === severityLevel) ? '' : 'none';
+                });
+            });
+        });
+        
+        // View alert details
+        document.querySelectorAll('.view-alert').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const alertId = this.getAttribute('data-id');
+                const modal = new bootstrap.Modal(document.getElementById('alertDetailModal'));
+                modal.show();
+
+                try {
+                    const [alertRes, nameMap] = await Promise.all([
+                        fetch(`/api/flood-alerts/${alertId}/`).then(r => r.json()),
+                        fetchBarangayNameMap()
+                    ]);
+                    const data = alertRes;
+                    const severityClass = getSeverityClass(data.severity_level);
+                    const severityText = getSeverityText(data.severity_level);
+
+                    let affectedBarangays = '<p>No barangays affected</p>';
+                    if (data.affected_barangays && data.affected_barangays.length > 0) {
+                        affectedBarangays = '<ul>' + data.affected_barangays.map(id => {
+                            const nm = nameMap.get(id) || `Barangay ${id}`;
+                            return `<li>${nm}</li>`;
+                        }).join('') + '</ul>';
+                    }
+
+                    const content = `
+                        <div class="alert ${severityClass}" role="alert">
+                            <h4 class="alert-heading">${data.title}</h4>
+                            <p class="mb-0">Severity: ${severityText}</p>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p><strong>Status:</strong> ${data.active ? 'Active' : 'Inactive'}</p>
+                                <p><strong>Issued At:</strong> ${new Date(data.issued_at).toLocaleString()}</p>
+                                <p><strong>Issued By:</strong> ${data.issued_by_username || 'System'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Last Updated:</strong> ${new Date(data.updated_at).toLocaleString()}</p>
+                                <p><strong>Predicted Flood Time:</strong> ${data.predicted_flood_time ? new Date(data.predicted_flood_time).toLocaleString() : 'Not specified'}</p>
+                            </div>
+                        </div>
+                        <div class="card mb-3">
+                            <div class="card-header">Description</div>
+                            <div class="card-body">
+                                <p class="card-text">${data.description || ''}</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">Affected Barangays</div>
+                            <div class="card-body">
+                                ${affectedBarangays}
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('alert-detail-content').innerHTML = content;
+
+                    const updateBtn = document.getElementById('update-alert-btn');
+                    updateBtn.textContent = data.active ? 'Deactivate Alert' : 'Activate Alert';
+                    updateBtn.setAttribute('data-id', data.id);
+                    updateBtn.setAttribute('data-active', data.active);
+                } catch (error) {
+                    document.getElementById('alert-detail-content').innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <h4 class="alert-heading">Error</h4>
+                            <p>Failed to load alert details: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            });
+        });
+        
+        // Update alert status
+        document.getElementById('update-alert-btn').addEventListener('click', function() {
+            const alertId = this.getAttribute('data-id');
+            const isActive = this.getAttribute('data-active') === 'true';
+            fetch(`/api/flood-alerts/${alertId}/`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ active: !isActive })
+            })
+            .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to update alert')))
+            .then(updated => {
+                // Update the row in-place
+                const row = document.querySelector(`#alerts-table tbody tr button.view-alert[data-id="${alertId}"]`)?.closest('tr');
+                if (row) {
+                    row.setAttribute('data-status', updated.active ? 'active' : 'inactive');
+                    const statusCell = row.children[2];
+                    statusCell.innerHTML = updated.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
+                    const actCell = row.children[5];
+                    const toggBtn = actCell.querySelector('.toggle-alert');
+                    if (toggBtn) {
+                        toggBtn.setAttribute('data-active', String(updated.active));
+                        toggBtn.className = updated.active ? 'btn btn-sm btn-outline-warning toggle-alert' : 'btn btn-sm btn-outline-success toggle-alert';
+                        toggBtn.innerHTML = updated.active ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+                    }
+                }
+                // Update modal button label
+                const updateBtn = document.getElementById('update-alert-btn');
+                updateBtn.textContent = updated.active ? 'Deactivate Alert' : 'Activate Alert';
+                updateBtn.setAttribute('data-active', updated.active);
+                bootstrap.Modal.getInstance(document.getElementById('alertDetailModal')).hide();
+            })
+            .catch(error => alert(`Error: ${error.message}`));
+        });
+        
+        // Toggle alert status directly from table
+        document.querySelectorAll('.toggle-alert').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const alertId = this.getAttribute('data-id');
+                const isActive = this.getAttribute('data-active') === 'true';
+                if (!confirm(`Are you sure you want to ${isActive ? 'deactivate' : 'activate'} this alert?`)) return;
+                fetch(`/api/flood-alerts/${alertId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ active: !isActive })
+                })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('Failed to update alert')))
+                .then(updated => {
+                    // Update the row in-place
+                    const row = document.querySelector(`#alerts-table tbody tr button.view-alert[data-id="${alertId}"]`)?.closest('tr');
+                    if (row) {
+                        row.setAttribute('data-status', updated.active ? 'active' : 'inactive');
+                        const statusCell = row.children[2];
+                        statusCell.innerHTML = updated.active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
+                        const actCell = row.children[5];
+                        const toggBtn = actCell.querySelector('.toggle-alert');
+                        if (toggBtn) {
+                            toggBtn.setAttribute('data-active', String(updated.active));
+                            toggBtn.className = updated.active ? 'btn btn-sm btn-outline-warning toggle-alert' : 'btn btn-sm btn-outline-success toggle-alert';
+                            toggBtn.innerHTML = updated.active ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+                        }
+                    }
+                })
+                .catch(error => alert(`Error: ${error.message}`));
+            });
+        });
+        
+        // Export alerts
+        document.getElementById('export-alerts').addEventListener('click', async function() {
+            try {
+                const r = await fetch('/api/flood-alerts/?limit=1000');
+                if (!r.ok) throw new Error('Failed to fetch alerts');
+                const j = await r.json();
+                const rows = [['ID','Title','Severity','Active','Issued At','Updated At','Issued By','Affected Barangays']];
+                (j.results || []).forEach(a => {
+                    const sevMap = {1:'Advisory',2:'Watch',3:'Warning',4:'Emergency',5:'Catastrophic'};
+                    rows.push([
+                        a.id,
+                        a.title,
+                        sevMap[a.severity_level] || a.severity_level,
+                        a.active ? 'Yes' : 'No',
+                        a.issued_at,
+                        a.updated_at,
+                        a.issued_by_username || 'System',
+                        (a.affected_barangays || []).join('|')
+                    ]);
+                });
+                const csv = arrayToCsv(rows);
+                download(`alerts_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`, csv);
+            } catch (e) { alert(`Export failed: ${e.message}`); }
+        });
+        
+        // Refresh logs
+        document.getElementById('refresh-logs').addEventListener('click', function() {
+            window.location.reload();
+        });
+        
+        // Download contacts
+        document.getElementById('download-contacts').addEventListener('click', function() {
+            // In a real app, this would generate a contacts file
+            alert('This feature would export all emergency contacts to a CSV file.');
+        });
+        
+        // Use template
+        document.querySelectorAll('.use-template').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const template = this.getAttribute('data-template');
+                let title, description;
+                
+                switch(template) {
+                    case 'emergency':
+                        title = 'EMERGENCY FLOOD ALERT';
+                        description = 'EMERGENCY ALERT: Imminent flooding expected. Water levels have reached critical thresholds. Evacuate immediately to designated centers. Bring essential items only. Follow instructions from local authorities.';
+                        break;
+                    case 'warning':
+                        title = 'FLOOD WARNING';
+                        description = 'FLOOD WARNING: Heavy rainfall has caused rising water levels. Prepare for possible flooding. Secure valuables, prepare emergency supplies, and stay tuned for updates. Be ready to evacuate if instructed.';
+                        break;
+                    case 'advisory':
+                        title = 'FLOOD ADVISORY';
+                        description = 'FLOOD ADVISORY: Moderate rainfall anticipated over the next 24 hours. Minor flooding may occur in low-lying areas. Please monitor local conditions and stay informed through official channels.';
+                        break;
+                }
+                
+                // In a real app, this would pre-fill an alert form
+                alert(`Template copied!\n\nTitle: ${title}\n\nDescription: ${description}`);
+                
+                // Redirect to prediction page to create alert
+                window.location.href = '/prediction/';
+            });
+        });
+        
+        // Helper functions
+        function getSeverityClass(level) {
+            switch(parseInt(level)) {
+                case 5:
+                case 4:
+                    return 'alert-danger';
+                case 3:
+                case 2:
+                    return 'alert-warning';
+                case 1:
+                    return 'alert-info';
+                default:
+                    return 'alert-secondary';
+            }
+        }
+        
+        function getSeverityText(level) {
+            switch(parseInt(level)) {
+                case 5:
+                    return 'Catastrophic';
+                case 4:
+                    return 'Emergency';
+                case 3:
+                    return 'Warning';
+                case 2:
+                    return 'Watch';
+                case 1:
+                    return 'Advisory';
+                default:
+                    return 'Unknown';
+            }
+        }
+    });
+</script>
+{% endblock %}

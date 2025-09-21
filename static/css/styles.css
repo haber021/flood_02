@@ -1,0 +1,713 @@
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Chart responsiveness */
+.responsive-chart {
+    position: relative;
+    height: 300px;
+    width: 100% !important;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .responsive-chart {
+        height: 350px;
+    }
+}
+
+@media (min-width: 992px) {
+    .responsive-chart {
+        height: 400px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .responsive-chart {
+        height: 450px;
+    }
+}
+
+/* Navbar styles */
+.navbar-brand svg {
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+/* Card styles */
+.card {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
+    font-weight: 500;
+}
+
+/* Gauge styles */
+.gauge-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px;
+    position: relative;
+}
+
+.gauge {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto;
+    background: conic-gradient(
+        #198754 0% 100%  /* Only green for normal */
+    );
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Gauge danger state */
+.gauge.gauge-danger {
+    background: conic-gradient(
+        #dc3545 0% 100%  /* Only red for danger */
+    );
+}
+
+.gauge:before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    background: white;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.gauge-value {
+    position: absolute;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    z-index: 2;
+}
+
+.gauge-label {
+    position: absolute;
+    top: 75%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.9rem;
+    color: #666;
+    z-index: 2;
+}
+
+/* Alert status styles */
+.alert-status {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.status-icon {
+    margin-bottom: 10px;
+}
+
+.status-text {
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Maps styling */
+#flood-map, #barangays-map, #barangay-map {
+    width: 100%;
+    min-height: 400px;
+    z-index: 0;
+}
+
+.map-legend {
+    font-size: 0.875rem;
+}
+
+/* Custom marker styles for Leaflet maps */
+.custom-div-icon {
+    background: none;
+    border: none;
+}
+
+/* Pulsing circle effect for selected barangay */
+.pulsing-circle {
+    animation: circle-pulse 2s ease-out infinite;
+}
+
+@keyframes circle-pulse {
+    0% {
+        stroke-width: 2;
+        stroke-opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        stroke-width: 0;
+        stroke-opacity: 0;
+        transform: scale(1.5);
+    }
+}
+
+/* Pulse effect for sensor icons */
+.pulse-icon {
+    animation: icon-pulse 2s infinite;
+}
+
+@keyframes icon-pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Prediction page styles */
+.prediction-gauge {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+
+.gauge-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        #198754 0% 100%  /* Only green for normal */
+    );
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Danger state for prediction gauge */
+.gauge-circle.danger {
+    background: conic-gradient(
+        #dc3545 0% 100%  /* Only red for danger */
+    );
+}
+
+.percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    font-weight: bold;
+    color: #333;
+    z-index: 2;
+}
+
+.gauge-label {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 1rem;
+    color: #666;
+}
+
+.mask {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    background: white;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+/* Active alerts banner styling */
+#alerts-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        background-color: rgba(220, 53, 69, 0.9);
+    }
+    50% {
+        background-color: rgba(220, 53, 69, 1);
+    }
+    100% {
+        background-color: rgba(220, 53, 69, 0.9);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .gauge {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .gauge-value {
+        font-size: 1.5rem;
+    }
+    
+    .prediction-gauge {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .percentage {
+        font-size: 2rem;
+    }
+    
+    .card-title {
+        font-size: 1rem;
+    }
+}
+
+/* Mobile-friendly navigation */
+@media (max-width: 576px) {
+    .nav-link {
+        padding: 0.5rem;
+    }
+    
+    .container-fluid {
+        padding: 0.5rem;
+    }
+    
+    #flood-map, #barangays-map, #barangay-map {
+        height: 300px;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar, .btn, .no-print {
+        display: none !important;
+    }
+    
+    .container-fluid {
+        padding: 0;
+    }
+    
+    .card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    body {
+        background-color: white;
+    }
+}
+
+/* Table hover effect */
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.6em;
+}
+
+/* Threshold visualization styling */
+.threshold-legend .col {
+    padding: 0 4px;
+}
+
+/* Alert typing animation */
+.typing-text::after {
+    content: '|';
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #aaa;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #888;
+}
+
+/* Auth pages (login/register) responsive scaling */
+/* Target the full-screen auth container used by login/register */
+.container-fluid.min-vh-100.bg-light > .card {
+    width: clamp(320px, 35vw, 560px);
+}
+
+.container-fluid.min-vh-100.bg-light .card-body {
+    padding: clamp(1.25rem, 3.2vw, 3rem) !important;
+}
+
+/* Scale the logo and title responsively */
+.container-fluid.min-vh-100.bg-light svg {
+    width: clamp(56px, 9vw, 96px);
+    height: auto;
+}
+
+.container-fluid.min-vh-100.bg-light h2 {
+    font-size: clamp(1.5rem, 2.2vw + 0.5rem, 2.25rem);
+}
+
+/* Form controls and buttons scale with screen size */
+.container-fluid.min-vh-100.bg-light .form-control {
+    font-size: clamp(1rem, 1.2vw, 1.125rem);
+    padding: 0.6rem 0.85rem;
+}
+
+.container-fluid.min-vh-100.bg-light .btn {
+    font-size: clamp(1rem, 1.2vw, 1.125rem);
+    padding: clamp(0.55rem, 1.2vw, 0.85rem) 1.1rem;
+}
+
+/* Ensure the auth layout breathes on very small devices */
+@media (max-width: 400px) {
+    .container-fluid.min-vh-100.bg-light .card-body {
+        padding: 1rem !important;
+    }
+}
+
+/* --- Add Sensor / Form Improvements (user-friendly) --- */
+.form-card {
+    max-width: 980px;
+    margin: 1rem auto;
+}
+
+.form-card .card-header {
+    background: linear-gradient(90deg, #0d6efd 0%, #0b5ed7 100%);
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.form-row .form-group {
+    flex: 1 1 220px;
+    min-width: 180px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control, .form-select, textarea.form-control {
+    border-radius: 0.45rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #d0d7de;
+    box-shadow: none;
+}
+
+textarea.form-control {
+    min-height: 110px;
+}
+
+.form-actions {
+    margin-top: 1rem;
+}
+
+/* Input group icon sizing and alignment for Add Sensor form */
+.form-card .input-group-text {
+    background: #f7f7f9;
+    border-right: 0;
+}
+.form-card .input-group .form-control {
+    border-left: 0;
+}
+
+/* Small error text styling */
+.form-card .text-danger.small {
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 575px) {
+    .form-row {
+        gap: 0.5rem;
+        flex-direction: column;
+    }
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    box-shadow: 0 4px 12px rgba(13,110,253,0.15);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Navbar current time styling - make it clearer and use Manila timezone in JS */
+#current-time {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+/* Make dropdown items slightly larger for touch targets */
+.dropdown-menu .dropdown-item {
+    padding: 0.6rem 1rem;
+}
+
+/* Improve spacing on the add sensor card form */
+.card-body .form-group + .form-group {
+    margin-top: 0.6rem;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+    }
+}
+
+
+/* Chart Styling */
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 420px; /* Further increased height for better visualization */
+    margin-bottom: 10px;
+    overflow: hidden;
+    padding: 0;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.chart-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    background-color: transparent !important;
+}
+
+/* Dashboard wide screen optimizations */
+@media (min-width: 1400px) {
+    /* Distribute dashboard sections more evenly on wider screens */
+    .dashboard-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    
+    /* Make sure cards have proper margins on wide screens */
+    .card {
+        margin-bottom: 1.75rem;
+    }
+    
+    /* Optimize font sizes for readability on large screens */
+    .card-title {
+        font-size: 1.2rem;
+    }
+    
+    /* Improve the spacing of UI elements */
+    .btn {
+        margin: 0 0.15rem;
+    }
+    
+    /* Better use of horizontal space */
+    .container-fluid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    /* Optimize barangay cards layout for wide screens */
+    #municipality-barangay-cards .col-md-4,
+    #barangay-cards .col-md-4 {
+        flex: 0 0 auto;
+        width: 33.33333%;
+    }
+    
+    /* For ultra-wide screens, show more cards per row */
+    @media (min-width: 1800px) {
+        #municipality-barangay-cards .col-md-4,
+        #barangay-cards .col-md-4 {
+            flex: 0 0 auto;
+            width: 25%;
+        }
+    }
+    
+    @media (min-width: 2200px) {
+        #municipality-barangay-cards .col-md-4,
+        #barangay-cards .col-md-4 {
+            flex: 0 0 auto;
+            width: 20%;
+        }
+    }
+}
+
+/* Chart responsiveness at different breakpoints */
+/* For wider screens */
+@media (min-width: 1400px) {
+    .chart-container {
+        height: 380px;
+    }
+    
+    /* Make charts container take proper space relative to the map */
+    .col-lg-5.col-xxl-4 {
+        flex: 0 0 auto;
+        width: 33.33333333%;
+    }
+    
+    /* Adjust map container on wide screens */
+    .col-lg-7.col-xxl-8 {
+        flex: 0 0 auto;
+        width: 66.66666667%;
+    }
+}
+
+@media (min-width: 1800px) {
+    .chart-container {
+        height: 420px;
+    }
+    
+    /* Make charts container even larger on super wide screens */
+    .col-lg-5.col-xxl-4 {
+        flex: 0 0 auto;
+        width: 45%;
+    }
+}
+
+/* For ultra-wide screens */
+@media (min-width: 2200px) {
+    .chart-container {
+        height: 450px;
+    }
+}
+
+/* Dashboard layout fixes: ensure map and chart share row correctly and do not overflow */
+.dashboard-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.dashboard-row > [class*='col-'] {
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-row .card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.dashboard-row .card .card-body {
+    flex: 1 1 auto;
+    overflow: hidden; /* prevent inner content from pushing card out */
+}
+
+/* Ensure map container doesn't exceed its column */
+#flood-map, #barangays-map, #barangay-map {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    min-height: 360px;
+    height: 100%;
+}
+
+/* Make the card body for map allow internal scrolling if necessary */
+.col-lg-7 .card-body.p-0 {
+    display: flex;
+    flex-direction: column;
+}
+
+.col-lg-7 .card-body > #flood-map {
+    flex: 1 1 auto;
+    min-height: 360px;
+}
+
+/* Keep chart area consistent height and allow canvas to scale within */
+.chart-container {
+    height: 100%;
+    min-height: 360px;
+    max-height: 75vh;
+    overflow: hidden;
+}
+
+.chart-container .chart-canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Prevent unexpected column wrapping by ensuring reasonable min-width for chart column */
+.col-lg-5.col-xxl-4 {
+    min-width: 360px;
+}
+
+/* On very wide screens, let Bootstrap control widths but ensure no overflow */
+@media (min-width: 1400px) {
+    .dashboard-row {
+        gap: 1.5rem;
+    }
+}
+
+/* For smaller screens */
+@media (max-width: 992px) {
+    .chart-container {
+        height: 320px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        height: 280px;
+    }
+}
+
+@media (max-width: 576px) {
+    .chart-container {
+        height: 250px;
+    }
+    
+    .chart-container .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/*

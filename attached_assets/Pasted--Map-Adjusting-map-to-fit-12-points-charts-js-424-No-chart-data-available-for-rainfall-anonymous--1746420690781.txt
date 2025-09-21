@@ -1,0 +1,57 @@
+[Map] Adjusting map to fit 12 points
+charts.js:424  No chart data available for rainfall
+(anonymous) @ charts.js:424
+charts.js:424  No chart data available for temperature
+(anonymous) @ charts.js:424
+charts.js:424  No chart data available for water_level
+(anonymous) @ charts.js:424
+map.js:831 ========== LOCATION CHANGE DETECTED ==========
+map.js:832 Refreshing all data for new location filter:
+map.js:833 Selected Municipality: All Municipalities
+map.js:835 Selected Barangay: Vical (ID: 1)
+map.js:837 ============================================
+map.js:859 Refreshing map with location filters...
+map.js:324 [Map] Adding barangay filter: Vical
+map.js:332 [Map] Fetching map data with URL: /api/map-data/?barangay_id=1
+map.js:883 Updating all charts with new location data...
+charts.js:117 Updating all charts with location filters...
+charts.js:118 Current Municipality: All Municipalities
+charts.js:119 Current Barangay: Vical
+charts.js:408 [Chart] Adding barangay filter: Vical
+charts.js:411 [Chart] Fetching temperature data with URL: /api/chart-data/?type=temperature&days=1&barangay_id=1
+charts.js:408 [Chart] Adding barangay filter: Vical
+charts.js:411 [Chart] Fetching rainfall data with URL: /api/chart-data/?type=rainfall&days=1&barangay_id=1
+charts.js:408 [Chart] Adding barangay filter: Vical
+charts.js:411 [Chart] Fetching water_level data with URL: /api/chart-data/?type=water_level&days=1&barangay_id=1
+map.js:911 Updating active alerts with new location data...
+charts.js:424  No chart data available for temperature
+(anonymous) @ charts.js:424
+map.js:342 [Map] Received map data with 5 barangays, 7 sensors, and 3 risk zones
+map.js:814 [Map] Adjusting map to fit 12 points
+charts.js:424  No chart data available for rainfall
+(anonymous) @ charts.js:424
+charts.js:424  No chart data available for water_level
+(anonymous) @ charts.js:424
+map.js:831 ========== LOCATION CHANGE DETECTED ==========
+map.js:832 Refreshing all data for new location filter:
+map.js:833 Selected Municipality: All Municipalities
+map.js:835 Selected Barangay: All Barangays
+map.js:837 ============================================
+map.js:859 Refreshing map with location filters...
+map.js:332 [Map] Fetching map data with URL: /api/map-data/
+map.js:883 Updating all charts with new location data...
+charts.js:117 Updating all charts with location filters...
+charts.js:118 Current Municipality: All Municipalities
+charts.js:119 Current Barangay: All Barangays
+charts.js:411 [Chart] Fetching temperature data with URL: /api/chart-data/?type=temperature&days=1
+charts.js:411 [Chart] Fetching rainfall data with URL: /api/chart-data/?type=rainfall&days=1
+charts.js:411 [Chart] Fetching water_level data with URL: /api/chart-data/?type=water_level&days=1
+map.js:911 Updating active alerts with new location data...
+map.js:342 [Map] Received map data with 5 barangays, 7 sensors, and 3 risk zones
+map.js:814 [Map] Adjusting map to fit 12 points
+charts.js:467 Updated rainfall chart with 22 data points
+charts.js:467 Updated water_level chart with 22 data points
+charts.js:467 Updated temperature chart with 11 data points
+map.js:332 [Map] Fetching map data with URL: /api/map-data/
+map.js:342 [Map] Received map data with 5 barangays, 7 sensors, and 3 risk zones
+map.js:814 [Map] Adjusting map to fit 12 points

@@ -1,0 +1,155 @@
+{
+  "high_risk": {
+    "random_forest": {
+      "probability": 97,
+      "severity_level": 5,
+      "severity_text": "Catastrophic",
+      "hours_to_flood": 11.612199382431452,
+      "contributing_factors_count": 4
+    },
+    "gradient_boosting": {
+      "probability": 40,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 4
+    },
+    "svm": {
+      "probability": 35,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 4
+    },
+    "ensemble": {
+      "probability": 62,
+      "severity_level": 3,
+      "severity_text": "Warning",
+      "hours_to_flood": 11.6,
+      "contributing_factors_count": 5
+    },
+    "mcda": {
+      "probability": 59,
+      "severity_level": 3,
+      "severity_text": "Warning",
+      "hours_to_flood": 1.7,
+      "contributing_factors_count": 5
+    },
+    "dtw": {
+      "probability": 97,
+      "severity_level": 5,
+      "severity_text": "Catastrophic",
+      "hours_to_flood": 11.612199382431452,
+      "contributing_factors_count": 4
+    },
+    "time_series": {
+      "probability": 94,
+      "severity_level": 5,
+      "severity_text": "Catastrophic",
+      "hours_to_flood": null,
+      "contributing_factors_count": 5
+    }
+  },
+  "medium_risk": {
+    "random_forest": {
+      "probability": 89,
+      "severity_level": 4,
+      "severity_text": "Emergency",
+      "hours_to_flood": 20.029003762964827,
+      "contributing_factors_count": 1
+    },
+    "gradient_boosting": {
+      "probability": 40,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "svm": {
+      "probability": 35,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "ensemble": {
+      "probability": 59,
+      "severity_level": 3,
+      "severity_text": "Warning",
+      "hours_to_flood": 20.0,
+      "contributing_factors_count": 3
+    },
+    "mcda": {
+      "probability": 44,
+      "severity_level": 2,
+      "severity_text": "Watch",
+      "hours_to_flood": null,
+      "contributing_factors_count": 3
+    },
+    "dtw": {
+      "probability": 89,
+      "severity_level": 4,
+      "severity_text": "Emergency",
+      "hours_to_flood": 20.029003762964827,
+      "contributing_factors_count": 1
+    },
+    "time_series": {
+      "probability": 79,
+      "severity_level": 4,
+      "severity_text": "Emergency",
+      "hours_to_flood": 0.5,
+      "contributing_factors_count": 3
+    }
+  },
+  "low_risk": {
+    "random_forest": {
+      "probability": 45,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "gradient_boosting": {
+      "probability": 40,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "svm": {
+      "probability": 35,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "ensemble": {
+      "probability": 41,
+      "severity_level": 2,
+      "severity_text": "Watch",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "mcda": {
+      "probability": 19,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 0
+    },
+    "dtw": {
+      "probability": 45,
+      "severity_level": 1,
+      "severity_text": "Advisory",
+      "hours_to_flood": null,
+      "contributing_factors_count": 1
+    },
+    "time_series": {
+      "probability": 56,
+      "severity_level": 3,
+      "severity_text": "Warning",
+      "hours_to_flood": 9.0,
+      "contributing_factors_count": 1
+    }
+  }
+}

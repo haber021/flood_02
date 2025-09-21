@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Database Management{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>Database Management</h1>
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Database Management</li>
+                </ol>
+            </div>
+            <hr>
+        </div>
+    </div>
+    
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Create Database Backup</h5>
+                </div>
+                <div class="card-body">
+                    <p>Create a backup of the current database state. This will save all data including:</p>
+                    <ul>
+                        <li>User accounts and profiles</li>
+                        <li>Municipalities and barangays</li>
+                        <li>Sensor data and readings</li>
+                        <li>Flood alerts and notifications</li>
+                        <li>Risk zones and thresholds</li>
+                    </ul>
+                    <form method="post" action="{% url 'create_backup' %}">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="backup_filename">Backup Filename (optional):</label>
+                            <input type="text" id="backup_filename" name="backup_filename" class="form-control"
+                                placeholder="Leave blank for automatic timestamp-based filename">
+                            <small class="form-text text-muted">Default: flood_monitoring_backup_YYYY-MM-DD_HHMMSS.[json/sql]</small>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="backup_format">Backup Format:</label>
+                            <select id="backup_format" name="backup_format" class="form-select">
+                                <option value="json" selected>JSON (Django dumpdata)</option>
+                                <option value="sql">SQL (PostgreSQL pg_dump)</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                JSON format is more portable, SQL format preserves database-specific features
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-download me-2"></i> Create Backup
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Restore Database</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Restoring a backup will overwrite the current database.
+                        This action cannot be undone.
+                    </div>
+                    <form method="post" action="{% url 'restore_backup' %}">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="restore_file">Select Backup to Restore:</label>
+                            <select id="restore_file" name="restore_file" class="form-select" required>
+                                {% if backups %}
+                                    {% for backup in backups %}
+                                    <option value="{{ backup.filename }}">{{ backup.filename }} ({{ backup.size }}, {{ backup.modified }})</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="" disabled>No backups available</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        {% if backups %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="confirm_restore" name="confirm_restore" required>
+                            <label class="form-check-label text-danger" for="confirm_restore">
+                                I understand this will overwrite the current database
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-warning" {% if not backups %}disabled{% endif %}>
+                            <i class="fas fa-upload me-2"></i> Restore Selected Backup
+                        </button>
+                        {% else %}
+                        <p class="text-muted">No backup files available for restore.</p>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Available Backups</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Size</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if backups %}
+                                    {% for backup in backups %}
+                                    <tr>
+                                        <td>{{ backup.filename }}</td>
+                                        <td>{{ backup.size }}</td>
+                                        <td>{{ backup.modified }}</td>
+                                        <td>
+                                            <a href="{% url 'download_backup' filename=backup.filename %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download"></i> Download
+                                            </a>
+                                            <a href="{% url 'delete_backup' filename=backup.filename %}" class="btn btn-sm btn-outline-danger" 
+                                               onclick="return confirm('Are you sure you want to delete this backup file? This cannot be undone.')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <p class="text-muted mb-0">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                No backup files found. Create your first backup using the form above.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

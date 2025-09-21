@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="form-card mx-auto">
+        <div class="card-body">
+            <h4 class="card-title">Add Municipality</h4>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="id_name">Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-city"></i></span>
+                            {{ form.name }}
+                        </div>
+                        {% if form.name.errors %}
+                            <div class="text-danger small">{{ form.name.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+
+                        <div class="form-group">
+                            <label for="id_latitude">Latitude</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-location-arrow"></i></span>
+                                {{ form.latitude }}
+                            </div>
+                            {% if form.latitude.errors %}
+                                <div class="text-danger small">{{ form.latitude.errors.as_text }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="id_longitude">Longitude</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-location-arrow"></i></span>
+                                {{ form.longitude }}
+                            </div>
+                            {% if form.longitude.errors %}
+                                <div class="text-danger small">{{ form.longitude.errors.as_text }}</div>
+                            {% endif %}
+                        </div>
+                    <div class="form-group">
+                        <label for="id_province">Province</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-map"></i></span>
+                            {{ form.province }}
+                        </div>
+                        {% if form.province.errors %}
+                            <div class="text-danger small">{{ form.province.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <div class="form-check mt-2">
+                            {{ form.is_active }} <label class="form-check-label ms-2" for="id_is_active">Active</label>
+                        </div>
+                        {% if form.is_active.errors %}
+                            <div class="text-danger small">{{ form.is_active.errors.as_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-actions mt-3">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Municipality</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

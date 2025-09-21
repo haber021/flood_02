@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %} - Barangays Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>Barangays Management</h2>
+            <p class="text-muted">Monitor and manage flood-affected areas</p>
+        </div>
+        <div class="col-md-6">
+            <form method="get" action="{% url 'barangays_page' %}" id="search-form" class="d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                <div class="input-group" style="max-width: 250px;">
+                    {{ form.name }}
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                
+                <div style="width: 150px;">
+                    {{ form.severity_level }}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Municipality Selector -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-building me-2"></i>Select Municipality</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p>Select a municipality to view all its registered barangays:</p>
+                </div>
+                <div class="col-md-6">
+                    <select id="municipality-select" class="form-select">
+                        <option value="">-- Select Municipality --</option>
+                        <!-- Options will be populated via JavaScript -->
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3 align-items-center">
+                <div class="col-md-6">
+                    <p>Select a barangay to center and highlight on the map:</p>
+                </div>
+                <div class="col-md-6">
+                    <select id="barangay-select" class="form-select" disabled>
+                        <option value="">-- All Barangays --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barangay Cards Container -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i>Barangay Cards</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="barangay-cards-container" class="row">
+                <div class="col-12 text-center py-5">
+                    <p class="text-muted">Please select a municipality to view its barangays</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barangays Data Table -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-map-marked-alt me-2"></i>Barangays
+                </h5>
+                <div>
+                    <span class="badge bg-secondary">Total: {{ barangays.count }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Barangay Name</th>
+                            <th class="text-center">Population</th>
+                            <th class="text-center">Flood Severity</th>
+                            <th>Contact Person</th>
+                            <th class="text-center">Contact Number</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if barangays %}
+                            {% for barangay in barangays %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'barangay_detail' barangay.id %}" class="text-decoration-none fw-bold">
+                                            {{ barangay.name }}
+                                        </a>
+                                    </td>
+                                    <td class="text-center">{{ barangay.population }}</td>
+                                    <td class="text-center">
+                                        {% with severity=barangay.flood_alerts.all|dictsort:"severity_level"|last %}
+                                            {% if severity %}
+                                                {% if severity.severity_level == 5 %}
+                                                    <span class="badge rounded-pill bg-danger">Catastrophic</span>
+                                                {% elif severity.severity_level == 4 %}
+                                                    <span class="badge rounded-pill bg-danger">Emergency</span>
+                                                {% elif severity.severity_level == 3 %}
+                                                    <span class="badge rounded-pill bg-warning">Warning</span>
+                                                {% elif severity.severity_level == 2 %}
+                                                    <span class="badge rounded-pill bg-warning">Watch</span>
+                                                {% elif severity.severity_level == 1 %}
+                                                    <span class="badge rounded-pill bg-info">Advisory</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge rounded-pill bg-success">Normal</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ barangay.contact_person|default:"--" }}</td>
+                                    <td class="text-center">{{ barangay.contact_number|default:"--" }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'barangay_detail' barangay.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">No barangays found matching your filters.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Map Overview -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-map me-2"></i>Barangays Map Overview
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div id="barangays-map" style="height: 500px;"></div>
+        </div>
+        <div class="card-footer">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="map-legend">
+                        <span class="me-3"><i class="fas fa-circle text-success me-1"></i> Normal</span>
+                        <span class="me-3"><i class="fas fa-circle text-info me-1"></i> Advisory</span>
+                        <span class="me-3"><i class="fas fa-circle text-warning me-1"></i> Watch/Warning</span>
+                        <span class="me-3"><i class="fas fa-circle text-danger me-1"></i> Emergency</span>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-muted">Click on a barangay marker for more details</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/barangays.js"></script>
+{% endblock %}
