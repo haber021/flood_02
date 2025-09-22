@@ -15,6 +15,7 @@
     normalize: false, // when true, normalize all lines to 0–100 for alignment
     _rawSeries: null, // keep last fetched raw series to re-apply normalization without refetch
     _trendsFetchInFlight: false, // guard against overlapping fetches
+    _alertsReqToken: 0, // monotonic token to ensure latest alert response wins
   };
   const barangayLayerById = new Map();
 
@@ -205,6 +206,14 @@
         brgySel.innerHTML = '<option value="" selected>All Barangays</option>';
         brgySel.disabled = !state.municipalityId;
       }
+      // Reset Alert Status UI and invalidate any in-flight alert requests
+      const badge = document.getElementById('alert-status-badge');
+      const title = document.getElementById('alert-title');
+      const msg = document.getElementById('alert-message');
+      if (badge) { badge.textContent = 'Normal'; badge.classList.remove('status-warning','status-danger'); badge.classList.add('status-normal'); }
+      if (title) title.textContent = 'Loading status…';
+      if (msg) msg.textContent = 'Fetching latest advisory for the selected location.';
+      state._alertsReqToken++;
       if (state.municipalityId) {
         populateBarangays(state.municipalityId).then(() => refreshAll());
         // Automatically apply thresholds for the new scope (municipality-wide for all barangays)
@@ -219,6 +228,15 @@
       brgySel.addEventListener('change', () => {
         state.barangayId = brgySel.value || null;
         sessionStorage.setItem('dashboard_barangay_id', state.barangayId || '');
+        // Reset Alert Status UI immediately to avoid stale badge while loading
+        const badge = document.getElementById('alert-status-badge');
+        const title = document.getElementById('alert-title');
+        const msg = document.getElementById('alert-message');
+        if (badge) { badge.textContent = 'Normal'; badge.classList.remove('status-warning','status-danger'); badge.classList.add('status-normal'); }
+        if (title) title.textContent = 'Loading status…';
+        if (msg) msg.textContent = 'Fetching latest advisory for the selected barangay.';
+        // Bump token to invalidate in-flight requests for previous selection
+        state._alertsReqToken++;
         refreshAll();
         // Automatically apply thresholds for selected barangay
         applyThresholdsNow();
@@ -438,6 +456,7 @@
 
   // ---------------- Alerts ----------------
   function updateAlerts() {
+    const token = ++state._alertsReqToken; // capture a new token for this invocation
     let url = '/api/flood-alerts/?active=true';
     if (state.municipalityId) url += `&municipality_id=${state.municipalityId}`;
     if (state.barangayId) url += `&barangay_id=${state.barangayId}`;
@@ -445,6 +464,8 @@
     fetch(url, { headers: { 'Accept': 'application/json' }})
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(async data => {
+        // Ensure this response belongs to the latest request
+        if (token !== state._alertsReqToken) return; // stale response; ignore
         const results = (data.results || []).sort((a,b) => b.severity_level - a.severity_level);
         let highest = results[0] || null;
         const badge = document.getElementById('alert-status-badge');
@@ -454,6 +475,8 @@
 
         // Always compute threshold-based severity for context
         const sev = await fetchThresholdSeverity();
+        // If selection changed while awaiting thresholds, drop this update
+        if (token !== state._alertsReqToken) return;
         const thresholdLevel = (sev && typeof sev.level === 'number') ? sev.level : 0;
         const combinedLevel = Math.max(highest ? (highest.severity_level || 0) : 0, thresholdLevel);
 
@@ -466,10 +489,17 @@
         else if (combinedLevel >= 2) badge.classList.add('status-warning');
         else badge.classList.add('status-normal');
 
+        // Resolve display location text from selectors
+        const muniSel = document.getElementById('location-select');
+        const brgySel = document.getElementById('barangay-select');
+        const muniName = (muniSel && muniSel.selectedIndex > -1) ? muniSel.options[muniSel.selectedIndex].text : '';
+        const brgyName = (brgySel && brgySel.selectedIndex > -1) ? brgySel.options[brgySel.selectedIndex].text : '';
+        const locText = state.barangayId ? brgyName : (state.municipalityId ? muniName : 'All Locations');
+
         // Title and detailed message
         if (highest && (highest.severity_level || 0) >= thresholdLevel) {
-          // Prioritize active alert title/descriptions
-          title.textContent = `${levels[highest.severity_level] || 'ALERT'}: ${highest.title}`;
+          // Prioritize active alert severity, but display current selection name
+          title.textContent = `${levels[highest.severity_level] || 'ALERT'}: Automated Alert for ${locText}`;
           const lines = [];
           if (highest.description) lines.push(escapeHtml(highest.description));
           // Add threshold context if any parameter breached
@@ -497,7 +527,7 @@
           const text = severityName(thresholdLevel);
           const top = (sev.items || []).sort((a,b)=>b.level-a.level)[0];
           const topLabel = top ? paramLabel(top.parameter) : 'Threshold';
-          title.textContent = `${text}: ${topLabel}`;
+          title.textContent = `${text}: ${topLabel} for ${locText}`;
           const lines = (sev.items || [])
             .filter(it => (it.level || 0) > 0)
             .map(it => {

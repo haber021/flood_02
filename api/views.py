@@ -263,6 +263,116 @@ def update_threshold_setting(request):
         logger.exception('Failed to update threshold setting')
         return Response({'success': False, 'message': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+# ---------------- Parameter Status (Compact) ----------------
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def parameter_status(request):
+    """Return a compact Parameter Status list for dashboard display.
+    Query params:
+      - municipality_id (optional)
+      - barangay_id (optional)
+      - parameters (optional, comma-separated): default all configured in ThresholdSetting
+
+    Response schema:
+    {
+      "generated_at": ISO8601,
+      "filters": { municipality_id, barangay_id },
+      "items": [
+        {
+          "parameter": "temperature|humidity|rainfall|water_level|wind_speed",
+          "label": "Temperature",
+          "unit": "°C|%|mm|m|km/h",
+          "latest": value or null,
+          "level": 0-5,
+          "level_name": "Normal|Advisory|...|Catastrophic",
+          "threshold": reference_threshold_for_level_or_null
+        }, ...
+      ],
+      "max_level": 0-5
+    }
+    """
+    municipality_id = request.GET.get('municipality_id')
+    barangay_id = request.GET.get('barangay_id')
+    param_filter = request.GET.get('parameters')
+
+    # Build location filters
+    sensor_filters = {}
+    if municipality_id:
+        sensor_filters['sensor__municipality_id'] = municipality_id
+    if barangay_id:
+        sensor_filters['sensor__barangay_id'] = barangay_id
+
+    # Select thresholds/parameters to include
+    qs = ThresholdSetting.objects.all()
+    if param_filter:
+        params = [p.strip() for p in param_filter.split(',') if p.strip()]
+        qs = qs.filter(parameter__in=params)
+
+    def compute_level(val, t):
+        if val is None:
+            return 0
+        if val >= t.catastrophic_threshold: return 5
+        if val >= t.emergency_threshold:    return 4
+        if val >= t.warning_threshold:      return 3
+        if val >= t.watch_threshold:        return 2
+        if val >= t.advisory_threshold:     return 1
+        return 0
+
+    def level_name(n):
+        return {0:'Normal',1:'Advisory',2:'Watch',3:'Warning',4:'Emergency',5:'Catastrophic'}.get(int(n), 'Normal')
+
+    items = []
+    for t in qs:
+        # Latest reading with graceful fallback
+        base = {'sensor__sensor_type': t.parameter}
+        base.update(sensor_filters)
+        latest = SensorData.objects.filter(**base).order_by('-timestamp').first()
+        if not latest and barangay_id and municipality_id:
+            muni_only = {
+                'sensor__sensor_type': t.parameter,
+                'sensor__municipality_id': municipality_id,
+                'sensor__barangay__isnull': True,
+            }
+            latest = SensorData.objects.filter(**muni_only).order_by('-timestamp').first()
+        if not latest:
+            global_q = {
+                'sensor__sensor_type': t.parameter,
+                'sensor__municipality__isnull': True,
+                'sensor__barangay__isnull': True,
+            }
+            latest = SensorData.objects.filter(**global_q).order_by('-timestamp').first()
+
+        latest_val = latest.value if latest else None
+        lvl = compute_level(latest_val, t)
+        thr_map = {1: t.advisory_threshold, 2: t.watch_threshold, 3: t.warning_threshold, 4: t.emergency_threshold, 5: t.catastrophic_threshold}
+        ref_threshold = thr_map.get(lvl)
+
+        label = {
+            'temperature': 'Temperature',
+            'humidity': 'Humidity',
+            'rainfall': 'Rainfall',
+            'water_level': 'Water Level',
+            'wind_speed': 'Wind Speed',
+        }.get(t.parameter, t.parameter.replace('_',' ').title())
+
+        items.append({
+            'parameter': t.parameter,
+            'label': label,
+            'unit': t.unit,
+            'latest': latest_val,
+            'level': lvl,
+            'level_name': level_name(lvl),
+            'threshold': ref_threshold,
+        })
+
+    max_level = max([it['level'] for it in items], default=0)
+    return Response({
+        'generated_at': timezone.now(),
+        'filters': {'municipality_id': municipality_id, 'barangay_id': barangay_id},
+        'items': items,
+        'max_level': max_level,
+    })
+
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for municipalities"""
     queryset = Municipality.objects.all()
