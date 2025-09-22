@@ -328,9 +328,18 @@ def config_page(request):
     return render(request, 'config.html', context)
 
 def get_chart_data(request):
-    """API endpoint to get chart data for the dashboard (no login required)"""
-    # This API endpoint is accessible without login for charts visualization
+    """API endpoint to get chart data for the dashboard (no login required).
+    Supports two modes:
+    - Range mode (default): last `days` days of data
+    - Limit mode: if `limit` is provided (>0), returns the latest N data points
+    Both modes respect optional municipality_id and barangay_id filters.
+    """
     chart_type = request.GET.get('type', 'temperature')
+    # Optional: fetch latest N readings
+    try:
+        limit = int(request.GET.get('limit')) if request.GET.get('limit') is not None else None
+    except Exception:
+        limit = None
     days = int(request.GET.get('days', 1))
     historical = request.GET.get('historical', 'false').lower() == 'true'
     
@@ -338,43 +347,87 @@ def get_chart_data(request):
     municipality_id = request.GET.get('municipality_id')
     barangay_id = request.GET.get('barangay_id')
     
-    end_date = timezone.now()
-    start_date = end_date - timedelta(days=days)
-    
-    # Build the query filter
-    filters = {
+    # Base queryset with optional location filters
+    base_filters = {
         'sensor__sensor_type': chart_type,
-        'timestamp__gte': start_date,
-        'timestamp__lte': end_date
     }
-    
-    # Add location filters if provided
     if municipality_id:
-        filters['sensor__municipality_id'] = municipality_id
-    
+        base_filters['sensor__municipality_id'] = municipality_id
     if barangay_id:
-        filters['sensor__barangay_id'] = barangay_id
-    
-    data = SensorData.objects.filter(**filters).order_by('timestamp')
-    
-    # If no data found with municipality filter, try getting global data
-    if not data.exists() and municipality_id:
-        # Log the fallback for debugging
-        print(f"No {chart_type} data found for municipality {municipality_id}, using global data")
-        
-        # Build a new filter without the municipality filter
-        global_filters = {
-            'sensor__sensor_type': chart_type,
-            'timestamp__gte': start_date,
-            'timestamp__lte': end_date
-        }
-        
-        # Get the most recent global data
-        global_data = SensorData.objects.filter(**global_filters).order_by('timestamp')
-        
-        # If global data is found, use it
-        if global_data.exists():
-            data = global_data
+        base_filters['sensor__barangay_id'] = barangay_id
+
+    if limit and limit > 0:
+        # Limit mode: choose a single representative sensor (with most recent reading)
+        # to avoid mixing multiple sensors in one line chart.
+        sensor_qs = Sensor.objects.filter(sensor_type=chart_type)
+        if municipality_id:
+            sensor_qs = sensor_qs.filter(municipality_id=municipality_id)
+        if barangay_id:
+            sensor_qs = sensor_qs.filter(barangay_id=barangay_id)
+
+        # Pick the sensor with the most recent reading
+        try:
+            top_sensor = (
+                sensor_qs
+                .annotate(last_ts=Max('sensordata__timestamp'))
+                .order_by('-last_ts')
+                .first()
+            )
+        except Exception:
+            top_sensor = None
+
+        if not top_sensor:
+            # Fallback to any global sensor of this type
+            top_sensor = (
+                Sensor.objects.filter(sensor_type=chart_type)
+                .annotate(last_ts=Max('sensordata__timestamp'))
+                .order_by('-last_ts')
+                .first()
+            )
+
+        if top_sensor:
+            qs = SensorData.objects.filter(sensor=top_sensor).order_by('-timestamp')
+        else:
+            qs = SensorData.objects.filter(sensor__sensor_type=chart_type).order_by('-timestamp')
+
+        rows = list(qs[:limit])
+        rows.reverse()  # chronological order for chart
+        data = rows
+    else:
+        # Range mode: last `days`
+        end_date = timezone.now()
+        start_date = end_date - timedelta(days=days)
+        # Prefer a single sensor series in range mode as well, for consistency
+        sensor_qs = Sensor.objects.filter(sensor_type=chart_type)
+        if municipality_id:
+            sensor_qs = sensor_qs.filter(municipality_id=municipality_id)
+        if barangay_id:
+            sensor_qs = sensor_qs.filter(barangay_id=barangay_id)
+
+        try:
+            top_sensor = (
+                sensor_qs
+                .annotate(last_ts=Max('sensordata__timestamp'))
+                .order_by('-last_ts')
+                .first()
+            )
+        except Exception:
+            top_sensor = None
+
+        if top_sensor:
+            filters = {
+                'sensor': top_sensor,
+                'timestamp__gte': start_date,
+                'timestamp__lte': end_date
+            }
+            data = SensorData.objects.filter(**filters).order_by('timestamp')
+        else:
+            global_filters = {
+                'sensor__sensor_type': chart_type,
+                'timestamp__gte': start_date,
+                'timestamp__lte': end_date
+            }
+            data = SensorData.objects.filter(**global_filters).order_by('timestamp')
     
     # Format timestamps based on the time range
     if days >= 30:  # Monthly view
@@ -532,6 +585,11 @@ def get_map_data(request):
     }
     
     return JsonResponse(map_data)
+
+
+def weather_dashboard(request):
+    """Public page: Polished Weather Conditions dashboard UI."""
+    return render(request, 'weather_dashboard.html')
 
 
 @login_required

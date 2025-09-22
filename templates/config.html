@@ -71,7 +71,7 @@
                     </div>
                     
                     <h5 class="mb-3">Add/Update Threshold</h5>
-                    <form method="post" id="threshold-form">
+                    <form method="post" id="threshold-form" action="{% url 'config_page' %}">
                         {% csrf_token %}
                         <div class="row mb-3">
                             <div class="col-md-6">
@@ -397,53 +397,58 @@
             });
         });
         
-        // Initialize threshold visualization
-        const thresholdCtx = document.getElementById('threshold-visualization').getContext('2d');
-        let thresholdChart = new Chart(thresholdCtx, {
-            type: 'line',
-            data: {
-                labels: ['Normal', 'Advisory', 'Watch', 'Warning', 'Emergency', 'Catastrophic'],
-                datasets: [{
-                    label: 'Threshold Values',
-                    data: [],
-                    backgroundColor: [
-                        'rgba(40, 167, 69, 0.2)',
-                        'rgba(23, 162, 184, 0.2)',
-                        'rgba(23, 162, 184, 0.2)',
-                        'rgba(255, 193, 7, 0.2)',
-                        'rgba(220, 53, 69, 0.2)',
-                        'rgba(220, 53, 69, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(40, 167, 69, 1)',
-                        'rgba(23, 162, 184, 1)',
-                        'rgba(23, 162, 184, 1)',
-                        'rgba(255, 193, 7, 1)',
-                        'rgba(220, 53, 69, 1)',
-                        'rgba(220, 53, 69, 1)'
-                    ],
-                    borderWidth: 2,
-                    tension: 0.1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Threshold Value'
+        // Initialize threshold visualization (guard if Chart.js is not available)
+        const thresholdCtx = document.getElementById('threshold-visualization')?.getContext('2d');
+        let thresholdChart = null;
+        if (window.Chart && thresholdCtx) {
+            thresholdChart = new Chart(thresholdCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Normal', 'Advisory', 'Watch', 'Warning', 'Emergency', 'Catastrophic'],
+                    datasets: [{
+                        label: 'Threshold Values',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(40, 167, 69, 0.2)',
+                            'rgba(23, 162, 184, 0.2)',
+                            'rgba(23, 162, 184, 0.2)',
+                            'rgba(255, 193, 7, 0.2)',
+                            'rgba(220, 53, 69, 0.2)',
+                            'rgba(220, 53, 69, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(40, 167, 69, 1)',
+                            'rgba(23, 162, 184, 1)',
+                            'rgba(23, 162, 184, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(220, 53, 69, 1)',
+                            'rgba(220, 53, 69, 1)'
+                        ],
+                        borderWidth: 2,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Threshold Value'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
                         }
                     }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
                 }
-            }
-        });
+            });
+        } else {
+            console.warn('Chart.js not available; skipping threshold visualization setup.');
+        }
         
         // Update threshold visualization based on selected parameter
         document.getElementById('visualization-parameter').addEventListener('change', function() {
@@ -518,6 +523,7 @@
         
         // Helper function to update threshold chart
         function updateThresholdChart(thresholdData) {
+            if (!thresholdChart) return;
             // Get the unit from the data
             const unit = thresholdData.unit || '';
             
@@ -540,6 +546,7 @@
         
         // Helper to show no data on the chart when no thresholds are configured
         function updateThresholdChartNoData() {
+            if (!thresholdChart) return;
             thresholdChart.data.datasets[0].data = [];
             thresholdChart.options.scales.y.title.text = 'Threshold Value';
             thresholdChart.update();
@@ -720,6 +727,60 @@
 
         // Initial validation in case fields are pre-populated
         validateThresholdInputs();
+
+        // Helper to get CSRF token from cookies (if available)
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // Submit via AJAX to API endpoint; fallback to normal POST if API fails
+        const thresholdForm = document.getElementById('threshold-form');
+        if (thresholdForm) {
+            thresholdForm.addEventListener('submit', function(e) {
+                if (!validateThresholdInputs()) {
+                    e.preventDefault();
+                    alert('Please correct the threshold values so they are numeric and strictly increasing before saving.');
+                    return;
+                }
+
+                e.preventDefault();
+                const payload = {
+                    parameter: document.getElementById('id_parameter')?.value,
+                    advisory_threshold: parseFloat(document.getElementById('id_advisory_threshold')?.value),
+                    watch_threshold: parseFloat(document.getElementById('id_watch_threshold')?.value),
+                    warning_threshold: parseFloat(document.getElementById('id_warning_threshold')?.value),
+                    emergency_threshold: parseFloat(document.getElementById('id_emergency_threshold')?.value),
+                    catastrophic_threshold: parseFloat(document.getElementById('id_catastrophic_threshold')?.value),
+                    unit: document.getElementById('id_unit')?.value,
+                };
+
+                const headers = { 'Content-Type': 'application/json' };
+                const csrftoken = getCookie('csrftoken');
+                if (csrftoken) headers['X-CSRFToken'] = csrftoken;
+
+                fetch('/api/update-threshold/', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(payload)
+                })
+                .then(r => r.json().then(j => ({ ok: r.ok, status: r.status, body: j })))
+                .then(({ ok, body }) => {
+                    if (ok && body && body.success) {
+                        // Success: reload to update the table
+                        location.reload();
+                    } else {
+                        // API refused; fallback to classic POST submission
+                        thresholdForm.submit();
+                    }
+                })
+                .catch(() => {
+                    // Network or other error: fallback to classic POST
+                    thresholdForm.submit();
+                });
+            });
+        }
     });
 </script>
 {% endblock %}

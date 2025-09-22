@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.models import Max, Avg, Sum, Q, Count, Min
+from django.views.decorators.csrf import csrf_exempt
 import math
 import logging
 import requests
@@ -176,6 +177,91 @@ def get_severity_name(severity_level):
         5: 'Catastrophic'
     }
     return severity_names.get(severity_level, 'Unknown')
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def update_threshold_setting(request):
+    """Create or update a ThresholdSetting by parameter.
+    Expected JSON body:
+    {
+        "parameter": "rainfall|water_level|temperature|humidity|wind_speed",
+        "advisory_threshold": float,
+        "watch_threshold": float,
+        "warning_threshold": float,
+        "emergency_threshold": float,
+        "catastrophic_threshold": float,
+        "unit": "mm|m|°C|%|km/h"
+    }
+    """
+    data = request.data if isinstance(request.data, dict) else {}
+    param = (data.get('parameter') or '').strip()
+
+    # Validate numeric inputs
+    try:
+        a = float(data.get('advisory_threshold'))
+        w = float(data.get('watch_threshold'))
+        wn = float(data.get('warning_threshold'))
+        e = float(data.get('emergency_threshold'))
+        c = float(data.get('catastrophic_threshold'))
+    except (TypeError, ValueError):
+        return Response({'success': False, 'message': 'All threshold values must be numeric.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    unit = (data.get('unit') or '').strip()
+
+    if not param:
+        return Response({'success': False, 'message': 'Parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not (a < w < wn < e < c):
+        return Response({'success': False, 'message': 'Thresholds must be strictly increasing: Advisory < Watch < Warning < Emergency < Catastrophic.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        th = ThresholdSetting.objects.filter(parameter__iexact=param).first()
+        created = False
+        if th:
+            th.advisory_threshold = a
+            th.watch_threshold = w
+            th.warning_threshold = wn
+            th.emergency_threshold = e
+            th.catastrophic_threshold = c
+            th.unit = unit
+            if getattr(request, 'user', None) and getattr(request.user, 'is_authenticated', False):
+                th.last_updated_by = request.user
+            th.save()
+        else:
+            th = ThresholdSetting(
+                parameter=param,
+                advisory_threshold=a,
+                watch_threshold=w,
+                warning_threshold=wn,
+                emergency_threshold=e,
+                catastrophic_threshold=c,
+                unit=unit,
+            )
+            if getattr(request, 'user', None) and getattr(request.user, 'is_authenticated', False):
+                th.last_updated_by = request.user
+            th.save()
+            created = True
+
+        return Response({
+            'success': True,
+            'created': created,
+            'data': {
+                'id': th.id,
+                'parameter': th.parameter,
+                'advisory_threshold': th.advisory_threshold,
+                'watch_threshold': th.watch_threshold,
+                'warning_threshold': th.warning_threshold,
+                'emergency_threshold': th.emergency_threshold,
+                'catastrophic_threshold': th.catastrophic_threshold,
+                'unit': th.unit,
+                'updated_at': th.updated_at,
+            }
+        })
+    except Exception as ex:
+        logger.exception('Failed to update threshold setting')
+        return Response({'success': False, 'message': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class MunicipalityViewSet(viewsets.ReadOnlyModelViewSet):
     """API endpoint for municipalities"""
@@ -1140,6 +1226,213 @@ def get_map_data(request):
         'barangays': barangay_data
     })
 
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def apply_thresholds(request):
+    """Apply threshold evaluation for locations and create/update targeted alerts.
+    Behavior:
+    - If barangay_id is provided: evaluate only that barangay.
+    - Else if municipality_id is provided: evaluate all barangays in that municipality.
+    - Else: evaluate all barangays.
+
+    Optional body fields:
+    - dry_run: bool (default False) — when true, do not persist alerts, only report actions.
+    """
+    try:
+        municipality_id = request.data.get('municipality_id')
+        barangay_id = request.data.get('barangay_id')
+        # process_scope: 'barangay' | 'municipality' | 'all'
+        process_scope = (request.data.get('process_scope') or '').strip().lower()
+        dry_run = bool(request.data.get('dry_run', False))
+
+        # Load thresholds once
+        thresholds = {t.parameter: t for t in ThresholdSetting.objects.all()}
+        if not thresholds:
+            return Response({
+                'success': False,
+                'message': 'No threshold settings configured.',
+                'processed': 0,
+                'created': 0,
+                'updated': 0,
+                'results': []
+            }, status=status.HTTP_200_OK)
+
+        # Build barangay queryset according to scope
+        b_qs = Barangay.objects.all()
+        if process_scope == 'barangay' and barangay_id:
+            b_qs = b_qs.filter(id=barangay_id)
+        elif process_scope == 'municipality' and municipality_id:
+            b_qs = b_qs.filter(municipality_id=municipality_id)
+        elif process_scope == 'all':
+            pass  # all barangays
+        else:
+            # Backward-compatible default behavior
+            if barangay_id:
+                b_qs = b_qs.filter(id=barangay_id)
+            elif municipality_id:
+                b_qs = b_qs.filter(municipality_id=municipality_id)
+
+        def evaluate_severity(value, ts):
+            if value is None or ts is None:
+                return 0
+            if value >= ts.catastrophic_threshold:
+                return 5
+            if value >= ts.emergency_threshold:
+                return 4
+            if value >= ts.warning_threshold:
+                return 3
+            if value >= ts.watch_threshold:
+                return 2
+            if value >= ts.advisory_threshold:
+                return 1
+            return 0
+
+        sev_name = {1: 'Advisory', 2: 'Watch', 3: 'Warning', 4: 'Emergency', 5: 'Catastrophic'}
+
+        total_processed = 0
+        total_created = 0
+        total_updated = 0
+        results = []
+        now = timezone.now()
+
+        for b in b_qs.iterator():
+            total_processed += 1
+            exceeded_details = []
+            highest_severity = 0
+
+            # Check latest reading per configured parameter
+            # Fallback order: barangay -> municipality -> global
+            for param, ts in thresholds.items():
+                latest = SensorData.objects.filter(
+                    sensor__sensor_type=param,
+                    sensor__barangay=b,
+                ).order_by('-timestamp').first()
+
+                if not latest and b.municipality_id:
+                    latest = SensorData.objects.filter(
+                        sensor__sensor_type=param,
+                        sensor__municipality_id=b.municipality_id,
+                        sensor__barangay__isnull=True,
+                    ).order_by('-timestamp').first()
+
+                if not latest:
+                    latest = SensorData.objects.filter(
+                        sensor__sensor_type=param,
+                        sensor__municipality__isnull=True,
+                        sensor__barangay__isnull=True,
+                    ).order_by('-timestamp').first()
+
+                if not latest:
+                    continue
+
+                sev = evaluate_severity(latest.value, ts)
+                if sev > 0:
+                    exceeded_details.append({
+                        'parameter': param,
+                        'value': latest.value,
+                        'unit': ts.unit,
+                        'severity': sev,
+                        'severity_name': sev_name[sev],
+                    })
+                    highest_severity = max(highest_severity, sev)
+
+            if highest_severity == 0:
+                results.append({
+                    'barangay_id': b.id,
+                    'barangay_name': b.name,
+                    'action': 'none',
+                    'message': 'No thresholds exceeded',
+                    'exceeded': []
+                })
+                continue
+
+            # Compose title/description
+            title_prefix = f"Automated Alert for {b.name}"
+            details_lines = [
+                f"- {d['parameter'].replace('_',' ').title()}: {d['value']} {d['unit']} (>= {d['severity_name']})"
+                for d in sorted(exceeded_details, key=lambda x: (-x['severity'], x['parameter']))
+            ]
+            description = (
+                f"Automated threshold evaluation at {now.strftime('%Y-%m-%d %H:%M:%S %Z')} for {b.name}.\n"
+                f"Highest severity: {sev_name[highest_severity]}.\n"
+                f"Exceeded parameters:\n" + "\n".join(details_lines)
+            )
+
+            existing = (
+                FloodAlert.objects.filter(
+                    active=True,
+                    affected_barangays=b,
+                    title__startswith=title_prefix,
+                )
+                .order_by('-issued_at')
+                .first()
+            )
+
+            if dry_run:
+                action = 'create' if not existing else (
+                    'update' if highest_severity > existing.severity_level or existing.description != description else 'none'
+                )
+                results.append({
+                    'barangay_id': b.id,
+                    'barangay_name': b.name,
+                    'action': action,
+                    'highest_severity': highest_severity,
+                    'exceeded': exceeded_details,
+                })
+                continue
+
+            if existing:
+                if highest_severity > existing.severity_level or existing.description != description:
+                    existing.severity_level = max(existing.severity_level, highest_severity)
+                    existing.description = description
+                    existing.updated_at = timezone.now()
+                    existing.save()
+                    total_updated += 1
+                    results.append({
+                        'barangay_id': b.id,
+                        'barangay_name': b.name,
+                        'action': 'updated',
+                        'highest_severity': existing.severity_level,
+                        'exceeded': exceeded_details,
+                    })
+                else:
+                    results.append({
+                        'barangay_id': b.id,
+                        'barangay_name': b.name,
+                        'action': 'none',
+                        'message': 'Existing alert adequate',
+                        'highest_severity': existing.severity_level,
+                        'exceeded': exceeded_details,
+                    })
+            else:
+                alert = FloodAlert.objects.create(
+                    title=f"{title_prefix}: {sev_name[highest_severity]}",
+                    description=description,
+                    severity_level=highest_severity,
+                    active=True,
+                )
+                alert.affected_barangays.set([b])
+                total_created += 1
+                results.append({
+                    'barangay_id': b.id,
+                    'barangay_name': b.name,
+                    'action': 'created',
+                    'highest_severity': highest_severity,
+                    'exceeded': exceeded_details,
+                })
+
+        return Response({
+            'success': True,
+            'processed': total_processed,
+            'created': total_created,
+            'updated': total_updated,
+            'dry_run': dry_run,
+            'results': results,
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.exception('Error applying thresholds: %s', e)
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def threshold_visualization(request):
@@ -1200,9 +1493,25 @@ def threshold_visualization(request):
         }
         base_filters.update(sensor_filters)
 
-        # Latest reading
-        latest_qs = SensorData.objects.filter(**base_filters).order_by('-timestamp')
-        latest = latest_qs.first()
+        # Latest reading with fallback chain (barangay -> municipality (barangay null) -> global)
+        latest = SensorData.objects.filter(**base_filters).order_by('-timestamp').first()
+        if not latest:
+            # If barangay filter is present but no data, try municipality-only sensors
+            if barangay_id and municipality_id:
+                muni_only = {
+                    'sensor__sensor_type': t.parameter,
+                    'sensor__municipality_id': municipality_id,
+                    'sensor__barangay__isnull': True,
+                }
+                latest = SensorData.objects.filter(**muni_only).order_by('-timestamp').first()
+        if not latest:
+            # Fallback to global sensors (no municipality/barangay)
+            global_filters = {
+                'sensor__sensor_type': t.parameter,
+                'sensor__municipality__isnull': True,
+                'sensor__barangay__isnull': True,
+            }
+            latest = SensorData.objects.filter(**global_filters).order_by('-timestamp').first()
 
         # 24h stats
         stats_filters = base_filters.copy()

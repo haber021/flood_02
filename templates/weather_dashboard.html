@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Conditions Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        
+        .last-updated {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .card-header i {
+            font-size: 24px;
+            margin-right: 10px;
+            color: #3498db;
+        }
+        
+        .card-header h2 {
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        
+        .value {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        
+        .unit {
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+        
+        .additional-info {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        
+        .temperature-card {
+            border-top: 4px solid #e74c3c;
+        }
+        
+        .humidity-card {
+            border-top: 4px solid #3498db;
+        }
+        
+        .rainfall-card {
+            border-top: 4px solid #9b59b6;
+        }
+        
+        .water-level-card {
+            border-top: 4px solid #2ecc71;
+        }
+        
+        .wind-speed-card {
+            border-top: 4px solid #f39c12;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .status.normal {
+            background: #e8f6f3;
+            color: #2ecc71;
+        }
+        
+        .status.moderate {
+            background: #fff8e1;
+            color: #f39c12;
+        }
+        
+        .status.high {
+            background: #ffebee;
+            color: #e74c3c;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 15px;
+            }
+            
+            .value {
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Weather Conditions Dashboard</h1>
+            <div class="last-updated">Last updated: <span id="update-time">21 September 2025, 14:57</span></div>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card temperature-card">
+                <div class="card-header">
+                    <i class="fas fa-temperature-high"></i>
+                    <h2>Temperature</h2>
+                </div>
+                <div class="value">29<span class="unit">°C</span></div>
+                <div class="status moderate">Warm</div>
+                <div class="additional-info">Feels like 32°C</div>
+            </div>
+            
+            <div class="card humidity-card">
+                <div class="card-header">
+                    <i class="fas fa-tint"></i>
+                    <h2>Humidity</h2>
+                </div>
+                <div class="value">80<span class="unit">%</span></div>
+                <div class="status high">High Humidity</div>
+                <div class="additional-info">Dew point: 25°C</div>
+            </div>
+            
+            <div class="card rainfall-card">
+                <div class="card-header">
+                    <i class="fas fa-cloud-rain"></i>
+                    <h2>Rainfall</h2>
+                </div>
+                <div class="value">0.0<span class="unit">mm</span></div>
+                <div class="status normal">No Rain</div>
+                <div class="additional-info">Last rainfall: 2 days ago</div>
+            </div>
+            
+            <div class="card water-level-card">
+                <div class="card-header">
+                    <i class="fas fa-water"></i>
+                    <h2>Water Level</h2>
+                </div>
+                <div class="value">0.5<span class="unit">m</span></div>
+                <div class="status normal">Normal</div>
+                <div class="additional-info">Safe level: below 1.5m</div>
+            </div>
+            
+            <div class="card wind-speed-card">
+                <div class="card-header">
+                    <i class="fas fa-wind"></i>
+                    <h2>Wind Speed</h2>
+                </div>
+                <div class="value">13<span class="unit">km/h</span></div>
+                <div class="status normal">Light Breeze</div>
+                <div class="additional-info">Direction: Northeast</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Weather Station ID: WS-127001 | Data refreshed automatically every 15 minutes</p>
+        </footer>
+    </div>
+
+    <script>
+        // Update the time dynamically
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            };
+            document.getElementById('update-time').textContent = now.toLocaleDateString('en-US', options);
+        }
+        
+        // Initial call
+        updateDateTime();
+        
+        // Update time every minute
+        setInterval(updateDateTime, 60000);
+    </script>
+</body>
+</html>

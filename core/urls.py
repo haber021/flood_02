@@ -19,6 +19,7 @@ urlpatterns = [
     path('barangays/<int:barangay_id>/', views.barangay_detail, name='barangay_detail'),
     path('notifications/', views.notifications_page, name='notifications_page'),
     path('config/', views.config_page, name='config_page'),
+    path('weather/', views.weather_dashboard, name='weather_dashboard'),
     path('resilience-scores/', views.resilience_scores_page, name='resilience_scores'),
     
     # User Management URLs

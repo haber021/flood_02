@@ -37,7 +37,7 @@ class CoreConfig(AppConfig):
             return
         CoreConfig._weather_thread_started = True
 
-        interval = int(os.environ.get('WEATHER_UPDATE_INTERVAL', 60*60))  # default 15 minutes
+        interval = int(os.environ.get('WEATHER_UPDATE_INTERVAL', 120*60))  # default 15 minutes
 
         def worker():
             # Slight delay on startup to allow migrations/connections to settle

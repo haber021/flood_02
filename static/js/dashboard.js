@@ -6,8 +6,42 @@
 // Dashboard refresh interval in milliseconds (5 minutes)
 const DASHBOARD_REFRESH_INTERVAL = 5 * 60 * 1000;
 
+// Cache for threshold settings by parameter
+let THRESHOLDS_MAP = null; // { parameter: {advisory, watch, warning, emergency, catastrophic, unit} }
+
+// Load threshold settings from API and cache them
+async function loadThresholds() {
+    try {
+        const resp = await fetch('/api/threshold-settings/', {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await resp.json();
+        const list = Array.isArray(data) ? data : (data.results || []);
+        const map = {};
+        list.forEach(t => {
+            map[t.parameter] = {
+                advisory: t.advisory_threshold,
+                watch: t.watch_threshold,
+                warning: t.warning_threshold,
+                emergency: t.emergency_threshold,
+                catastrophic: t.catastrophic_threshold,
+                unit: t.unit
+            };
+        });
+        THRESHOLDS_MAP = map;
+        console.log('[Dashboard] Threshold settings loaded');
+    } catch (e) {
+        console.warn('[Dashboard] Failed to load thresholds. Falling back to static gauge colors.', e);
+        THRESHOLDS_MAP = null;
+    }
+}
+
 // Dashboard initialization
 document.addEventListener('DOMContentLoaded', function() {
+    // Load thresholds first (do not block UI if it fails)
+    loadThresholds();
+    // Refresh thresholds periodically (every 10 minutes)
+    setInterval(loadThresholds, 10 * 60 * 1000);
     // Initialize sensor gauges
     initializeGauges();
     
@@ -259,40 +293,64 @@ function updateGauge(gaugeId, value, unit, timestampElementId, timestamp = null)
  * Update gauge color based on value and thresholds
  */
 function updateGaugeColor(gaugeId, value) {
-    // Define danger thresholds for different parameters (single threshold per gauge)
-    const dangerThresholds = {
-        'temperature-gauge': 32,    // Danger threshold for high temperature
-        'humidity-gauge': 85,      // Danger threshold for high humidity
-        'rainfall-gauge': 80,      // Danger threshold for heavy rainfall
-        'water-level-gauge': 1.5,  // Danger threshold for high water level
-        'wind-speed-gauge': 40     // Danger threshold for strong wind
+    // Map gaugeId to parameter name used server-side
+    const paramByGauge = {
+        'temperature-gauge': 'temperature',
+        'humidity-gauge': 'humidity',
+        'rainfall-gauge': 'rainfall',
+        'water-level-gauge': 'water_level',
+        'wind-speed-gauge': 'wind_speed'
     };
-    
-    // Get the appropriate threshold or use default
-    const dangerThreshold = dangerThresholds[gaugeId] || 50;
-    
-    // Define colors - only green (normal) and red (danger)
-    const normalColor = '#198754';  // Green
-    const dangerColor = '#dc3545';  // Red
-    
-    // Determine if value exceeds danger threshold
-    const isDanger = value >= dangerThreshold;
-    
-    // Apply color to gauge
+
     const gauge = document.getElementById(gaugeId);
-    if (gauge) {
-        // Remove all existing color classes
-        gauge.classList.remove('gauge-normal', 'gauge-advisory', 'gauge-watch', 'gauge-warning', 'gauge-emergency', 'gauge-danger');
-        
-        // Add appropriate color class and set color
-        if (isDanger) {
-            gauge.classList.add('gauge-danger');
-            gauge.style.setProperty('--gauge-color', dangerColor);
-        } else {
-            gauge.classList.add('gauge-normal');
-            gauge.style.setProperty('--gauge-color', normalColor);
-        }
+    if (!gauge) return;
+
+    // Remove any previous classes
+    gauge.classList.remove('gauge-normal', 'gauge-advisory', 'gauge-watch', 'gauge-warning', 'gauge-emergency', 'gauge-danger');
+
+    // If thresholds are not loaded or value invalid, default to normal
+    if (!THRESHOLDS_MAP || value === null || value === undefined || isNaN(value)) {
+        gauge.classList.add('gauge-normal');
+        gauge.style.setProperty('--gauge-color', '#198754'); // green
+        return;
     }
+
+    const param = paramByGauge[gaugeId];
+    const t = THRESHOLDS_MAP[param];
+    if (!t) {
+        gauge.classList.add('gauge-normal');
+        gauge.style.setProperty('--gauge-color', '#198754');
+        return;
+    }
+
+    // Compute severity (0..5)
+    let level = 0;
+    if (value >= t.catastrophic) level = 5;
+    else if (value >= t.emergency) level = 4;
+    else if (value >= t.warning) level = 3;
+    else if (value >= t.watch) level = 2;
+    else if (value >= t.advisory) level = 1;
+
+    // Choose color per level
+    const colorByLevel = {
+        0: '#198754', // green normal
+        1: '#0dcaf0', // info
+        2: '#0dcaf0', // info (watch)
+        3: '#ffc107', // warning
+        4: '#dc3545', // danger
+        5: '#dc3545'  // danger
+    };
+    const classByLevel = {
+        0: 'gauge-normal',
+        1: 'gauge-advisory',
+        2: 'gauge-watch',
+        3: 'gauge-warning',
+        4: 'gauge-emergency',
+        5: 'gauge-danger'
+    };
+
+    gauge.classList.add(classByLevel[level]);
+    gauge.style.setProperty('--gauge-color', colorByLevel[level]);
 }
 
 /**
