@@ -40,7 +40,7 @@
     .weather-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .weather-value { font-size: 26px; font-weight: 700; margin: 6px 0; }
     .weather-label { font-size: 14px; color: var(--gray); }
-    .weather-icon { font-size: 22px; color: #3498db; margin-bottom: 6px; }
+    .weather-icon { font-size: clamp(18px, 2.2vw, 26px); color: #94a3b8; margin-bottom: 6px; transition: color .2s ease; }
     .weather-sub { font-size: 12px; color: var(--gray); margin-top: 6px; }
 
     /* Status chip (Normal/Watch/Warning/Emergency) */
@@ -59,6 +59,11 @@
     .weather-item.sev-1 .weather-value, .weather-item.sev-2 .weather-value { color: #0ea5e9; }
     .weather-item.sev-3 .weather-value { color: #d97706; }
     .weather-item.sev-4 .weather-value, .weather-item.sev-5 .weather-value { color: #dc2626; }
+    /* Icon color follows severity */
+    .weather-item.sev-0 .weather-icon { color: #16a34a; }
+    .weather-item.sev-1 .weather-icon, .weather-item.sev-2 .weather-icon { color: #0ea5e9; }
+    .weather-item.sev-3 .weather-icon { color: #d97706; }
+    .weather-item.sev-4 .weather-icon, .weather-item.sev-5 .weather-icon { color: #dc2626; }
     .risk-indicator { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .risk-color { width: 20px; height: 20px; border-radius: 50%; }
     .risk-low { background-color: var(--success); }
