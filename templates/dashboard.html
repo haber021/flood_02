@@ -93,10 +93,6 @@
             <select id="barangay-select" aria-label="Select Barangay" disabled>
                 <option value="" selected>All Barangays</option>
             </select>
-            <button id="apply-thresholds-btn" class="apply-btn" title="Apply thresholds to current selection">
-                <i class="fas fa-sliders-h" style="margin-right:6px"></i>
-                Apply Thresholds
-            </button>
         </div>
     </header>
 
@@ -157,6 +153,10 @@
                     <div class="card-title-modern" id="alert-title">No Active Alerts</div>
                     <p id="alert-message">The system is monitoring environmental conditions continuously.</p>
                 </div>
+            </div>
+            <!-- Parameter Status List -->
+            <div id="param-status-list" style="margin-top:8px;">
+                <!-- Filled by JS using /api/parameter-status/ -->
             </div>
         </div>
 

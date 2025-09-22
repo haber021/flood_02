@@ -325,11 +325,11 @@ function updateGaugeColor(gaugeId, value) {
 
     // Compute severity (0..5)
     let level = 0;
-    if (value >= t.catastrophic) level = 5;
-    else if (value >= t.emergency) level = 4;
-    else if (value >= t.warning) level = 3;
-    else if (value >= t.watch) level = 2;
-    else if (value >= t.advisory) level = 1;
+    if (value > t.catastrophic) level = 5;
+    else if (value > t.emergency) level = 4;
+    else if (value > t.warning) level = 3;
+    else if (value > t.watch) level = 2;
+    else if (value > t.advisory) level = 1;
 
     // Choose color per level
     const colorByLevel = {

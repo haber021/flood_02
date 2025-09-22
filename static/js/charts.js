@@ -219,8 +219,8 @@ function createChart(canvasId, label, colors) {
             onResize: function(chart, size) {
                 // Adjust point sizes and styling based on screen width
                 const newIsMobile = size.width < 768;
-                const isWideScreen = size.width >= 1400;
-                const isUltraWideScreen = size.width >= 2200;
+                const isWideScreen = size.width > 1400;
+                const isUltraWideScreen = size.width > 2200;
                 
                 chart.data.datasets.forEach(dataset => {
                     // Smaller points on mobile, larger on wide screens

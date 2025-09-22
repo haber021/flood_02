@@ -213,6 +213,8 @@
       if (badge) { badge.textContent = 'Normal'; badge.classList.remove('status-warning','status-danger'); badge.classList.add('status-normal'); }
       if (title) title.textContent = 'Loading status…';
       if (msg) msg.textContent = 'Fetching latest advisory for the selected location.';
+      const list = document.getElementById('param-status-list');
+      if (list) list.innerHTML = '';
       state._alertsReqToken++;
       if (state.municipalityId) {
         populateBarangays(state.municipalityId).then(() => refreshAll());
@@ -235,6 +237,8 @@
         if (badge) { badge.textContent = 'Normal'; badge.classList.remove('status-warning','status-danger'); badge.classList.add('status-normal'); }
         if (title) title.textContent = 'Loading status…';
         if (msg) msg.textContent = 'Fetching latest advisory for the selected barangay.';
+        const list = document.getElementById('param-status-list');
+        if (list) list.innerHTML = '';
         // Bump token to invalidate in-flight requests for previous selection
         state._alertsReqToken++;
         refreshAll();
@@ -466,7 +470,13 @@
       .then(async data => {
         // Ensure this response belongs to the latest request
         if (token !== state._alertsReqToken) return; // stale response; ignore
-        const results = (data.results || []).sort((a,b) => b.severity_level - a.severity_level);
+        let results = (data.results || []);
+        // If a barangay is selected, only consider alerts that affect that barangay
+        if (state.barangayId) {
+          const selId = String(state.barangayId);
+          results = results.filter(a => Array.isArray(a.affected_barangays) && a.affected_barangays.map(String).includes(selId));
+        }
+        results = results.sort((a,b) => b.severity_level - a.severity_level);
         let highest = results[0] || null;
         const badge = document.getElementById('alert-status-badge');
         const title = document.getElementById('alert-title');
@@ -501,7 +511,12 @@
           // Prioritize active alert severity, but display current selection name
           title.textContent = `${levels[highest.severity_level] || 'ALERT'}: Automated Alert for ${locText}`;
           const lines = [];
-          if (highest.description) lines.push(escapeHtml(highest.description));
+          // Use a location-aware description instead of the stored alert description,
+          // which may reference a different barangay.
+          const desc = (state.barangayId || state.municipalityId)
+            ? `The system is monitoring environmental conditions in ${escapeHtml(locText)}.`
+            : 'The system is monitoring environmental conditions continuously.';
+          lines.push(desc);
           // Add threshold context if any parameter breached
           if (sev && Array.isArray(sev.items) && sev.items.some(it => (it.level||0) > 0)) {
             lines.push('<strong>Threshold details:</strong>');
@@ -518,8 +533,6 @@
                 return `${lbl}: ${latest} ${unit} exceeds ${severityName(it.level)} threshold (${refText} ${unit})`;
               }));
           }
-          // Append per-parameter status (all params)
-          if (sev) lines.push(buildParameterStatusHTML(sev));
           msg.innerHTML = lines.length ? lines.join('<br>') : 'Active alert in effect.';
           updateAffectedAreas(highest.affected_barangays || []);
         } else if (thresholdLevel > 0 && sev) {
@@ -540,8 +553,6 @@
               const refText = ref !== '' ? Number(ref).toFixed(2).replace(/\.00$/,'') : '—';
               return `${lbl}: ${latest} ${unit} exceeds ${severityName(it.level)} threshold (${refText} ${unit})`;
             });
-          // Append per-parameter status (all params)
-          lines.push(buildParameterStatusHTML(sev));
           msg.innerHTML = lines.length ? lines.join('<br>') : 'Computed from configured thresholds and latest readings.';
           updateAffectedAreas([]);
         } else {
@@ -550,10 +561,47 @@
           msg.textContent = 'The system is monitoring environmental conditions continuously.';
           updateAffectedAreas([]);
         }
+
+        // Render parameter status list using compact endpoint
+        try {
+          const p = await fetchParameterStatus();
+          if (token !== state._alertsReqToken) return;
+          renderParamStatusList(p && p.items ? p.items : []);
+        } catch (e) {
+          // ignore
+        }
       })
       .catch(() => {
         // Leave as-is on error
       });
+  }
+
+  async function fetchParameterStatus() {
+    const qs = [];
+    if (state.municipalityId) qs.push(`municipality_id=${encodeURIComponent(state.municipalityId)}`);
+    if (state.barangayId) qs.push(`barangay_id=${encodeURIComponent(state.barangayId)}`);
+    const url = `/api/parameter-status/${qs.length ? ('?' + qs.join('&')) : ''}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  function renderParamStatusList(items) {
+    const host = document.getElementById('param-status-list');
+    if (!host) return;
+    if (!items || !items.length) { host.innerHTML = ''; return; }
+    const colorFor = lvl => (lvl>=4?'#dc2626':lvl>=3?'#d97706':lvl>=1?'#0ea5e9':'#16a34a');
+    const rows = items.map(it => {
+      const latest = (it.latest == null || isNaN(it.latest)) ? '—' : (it.unit === 'mm' || it.unit === 'm' ? Number(it.latest).toFixed(1) : Number(it.latest).toFixed(0)).replace(/\.00$/,'');
+      const thr = (it.threshold != null && !isNaN(it.threshold)) ? (it.unit === 'mm' || it.unit === 'm' ? Number(it.threshold).toFixed(1) : Number(it.threshold).toFixed(0)).replace(/\.00$/,'') : '';
+      const extra = (it.level>0 && thr!=='') ? ` (> ${thr} ${it.unit||''})` : '';
+      return `<div style="display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-top:1px dashed #e5e7eb;">
+        <span>${escapeHtml(it.label || paramLabel(it.parameter))}</span>
+        <span style="color:${colorFor(it.level)}; font-weight:600;">${escapeHtml(it.level_name || 'Normal')}</span>
+        <span style="color:var(--gray); white-space:nowrap;">Latest: ${latest} ${it.unit||''}${extra}</span>
+      </div>`;
+    }).join('');
+    host.innerHTML = `<div style="margin-top:2px;">${rows}</div>`;
   }
 
   async function fetchThresholdSeverity() {
@@ -800,22 +848,34 @@
     state.chart = new Chart(ctx, {
       type: 'line',
       data: { labels: [], datasets: [
-        { label: 'Temperature (°C)', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.08)', cubicInterpolationMode: 'monotone', yAxisID: 'y', pointRadius: 5, pointHoverRadius: 7, borderWidth: 3, fill: false },
-        { label: 'Humidity (%)', data: [], borderColor: '#0ea5e9', backgroundColor: 'rgba(14, 165, 233, 0.08)', cubicInterpolationMode: 'monotone', yAxisID: 'y', pointRadius: 5, pointHoverRadius: 7, borderWidth: 3, fill: false },
-        { label: 'Rainfall (mm)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', cubicInterpolationMode: 'monotone', yAxisID: 'y1', pointRadius: 5, pointHoverRadius: 7, borderWidth: 3, fill: false },
-        { label: 'Water Level (m)', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.08)', cubicInterpolationMode: 'monotone', yAxisID: 'y1', pointRadius: 5, pointHoverRadius: 7, borderWidth: 3, fill: false },
-        { label: 'Wind Speed (km/h)', data: [], borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.08)', cubicInterpolationMode: 'monotone', yAxisID: 'y1', pointRadius: 5, pointHoverRadius: 7, borderWidth: 3, fill: false },
+        // Left axis (Temp/Humidity)
+        themedDataset('Temperature (°C)', '#ef4444', 'y'),
+        themedDataset('Humidity (%)',     '#0ea5e9', 'y'),
+        // Right axis (Rain/Water/Wind)
+        themedDataset('Rainfall (mm)',    '#3b82f6', 'y1'),
+        themedDataset('Water Level (m)',  '#10b981', 'y1'),
+        themedDataset('Wind Speed (km/h)',' #a855f7'.replace(' ', ''), 'y1'),
       ]},
       options: {
         responsive: true,
         maintainAspectRatio: false,
         spanGaps: true,
         interaction: { mode: 'index', intersect: false },
-        elements: { line: { tension: 0.4 } },
+        elements: {
+          line: { tension: 0.35, borderWidth: 2.5 },
+          point: { radius: 4.5, hoverRadius: 6.5, borderWidth: 2, backgroundColor: '#fff' }
+        },
         animation: { duration: 400, easing: 'easeOutQuart' },
         plugins: {
-          legend: { position: 'top', labels: { usePointStyle: true, padding: 16, boxWidth: 14, boxHeight: 8 } },
+          legend: {
+            position: 'top',
+            labels: { usePointStyle: true, padding: 16, boxWidth: 12, boxHeight: 8, color: '#334155' }
+          },
           tooltip: {
+            backgroundColor: 'rgba(30,41,59,0.9)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#e2e8f0',
+            cornerRadius: 6,
             callbacks: {
               title: items => {
                 try {
@@ -823,6 +883,16 @@
                   const iso = (state.chart && state.chart.__isoLabels) ? state.chart.__isoLabels[i] : (items[0].label || '');
                   return formatManilaFull(iso);
                 } catch (e) { return items[0].label || ''; }
+              },
+              label: ctx => {
+                const label = ctx.dataset ? (ctx.dataset.label || '') : '';
+                const v = (ctx.parsed && typeof ctx.parsed.y === 'number') ? ctx.parsed.y : null;
+                if (v == null) return `${label}: —`;
+                // Choose unit by dataset index
+                const idx = ctx.datasetIndex;
+                const unit = (idx === 0) ? '°C' : (idx === 1) ? '%' : (idx === 2) ? 'mm' : (idx === 3) ? 'm' : 'km/h';
+                const fixed = (unit === 'mm' || unit === 'm') ? v.toFixed(1) : v.toFixed(0);
+                return `${label}: ${fixed} ${unit}`;
               }
             }
           }
@@ -840,11 +910,42 @@
               }
             }
           },
-          y: { type: 'linear', position: 'left', title: { display: true, text: 'Temperature (°C) / Humidity (%)' }, grid: { color: 'rgba(0,0,0,0.05)' }, suggestedMin: 0 },
-          y1: { type: 'linear', position: 'right', title: { display: true, text: 'Rainfall (mm) / Water Level (m) / Wind (km/h)' }, grid: { drawOnChartArea: false }, suggestedMin: 0 }
+          y: {
+            type: 'linear', position: 'left',
+            title: { display: true, text: 'Temperature (°C) / Humidity (%)' },
+            grid: { color: 'rgba(148,163,184,0.15)', borderDash: [4,4] },
+            ticks: { color: '#475569' },
+            suggestedMin: 0
+          },
+          y1: {
+            type: 'linear', position: 'right',
+            title: { display: true, text: 'Rainfall (mm) / Water Level (m) / Wind (km/h)' },
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#475569' },
+            suggestedMin: 0
+          }
         }
       }
     });
+
+    // Helper to create themed dataset with outlined points
+    function themedDataset(label, color, axis) {
+      return {
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + '14', // subtle fill color (8% opacity)
+        cubicInterpolationMode: 'monotone',
+        yAxisID: axis,
+        pointRadius: 4.5,
+        pointHoverRadius: 6.5,
+        pointBorderColor: color,
+        pointBackgroundColor: '#ffffff',
+        pointBorderWidth: 2,
+        borderWidth: 2.5,
+        fill: false
+      };
+    }
   }
 
   function loadTrendsChart() {

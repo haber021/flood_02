@@ -128,15 +128,15 @@ def check_thresholds(sensor, value):
     # Determine the severity level based on the thresholds
     severity_level = None
     
-    if value >= threshold.catastrophic_threshold:
+    if value > threshold.catastrophic_threshold:
         severity_level = 5  # Catastrophic
-    elif value >= threshold.emergency_threshold:
+    elif value > threshold.emergency_threshold:
         severity_level = 4  # Emergency
-    elif value >= threshold.warning_threshold:
+    elif value > threshold.warning_threshold:
         severity_level = 3  # Warning
-    elif value >= threshold.watch_threshold:
+    elif value > threshold.watch_threshold:
         severity_level = 2  # Watch
-    elif value >= threshold.advisory_threshold:
+    elif value > threshold.advisory_threshold:
         severity_level = 1  # Advisory
     
     if severity_level:
@@ -1385,15 +1385,15 @@ def apply_thresholds(request):
         def evaluate_severity(value, ts):
             if value is None or ts is None:
                 return 0
-            if value >= ts.catastrophic_threshold:
+            if value > ts.catastrophic_threshold:
                 return 5
-            if value >= ts.emergency_threshold:
+            if value > ts.emergency_threshold:
                 return 4
-            if value >= ts.warning_threshold:
+            if value > ts.warning_threshold:
                 return 3
-            if value >= ts.watch_threshold:
+            if value > ts.watch_threshold:
                 return 2
-            if value >= ts.advisory_threshold:
+            if value > ts.advisory_threshold:
                 return 1
             return 0
 
@@ -1828,27 +1828,27 @@ def historical_suggestion(request):
     elif data_type == 'water_level':
         # Use configured thresholds if available
         if threshold:
-            if current_max >= threshold.catastrophic_threshold:
+            if current_max > threshold.catastrophic_threshold:
                 level_numeric = 5; level_text = 'Catastrophic'; reasons.append('Water level reached catastrophic threshold')
-            elif current_max >= threshold.emergency_threshold:
+            elif current_max > threshold.emergency_threshold:
                 level_numeric = 4; level_text = 'Emergency'; reasons.append('Water level reached emergency threshold')
-            elif current_max >= threshold.warning_threshold:
+            elif current_max > threshold.warning_threshold:
                 level_numeric = 3; level_text = 'Warning'; reasons.append('Water level reached warning threshold')
-            elif current_max >= threshold.watch_threshold:
+            elif current_max > threshold.watch_threshold:
                 level_numeric = 2; level_text = 'Watch'; reasons.append('Water level reached watch threshold')
-            elif current_max >= threshold.advisory_threshold:
+            elif current_max > threshold.advisory_threshold:
                 level_numeric = 1; level_text = 'Advisory'; reasons.append('Water level reached advisory threshold')
             else:
                 level_numeric = 0; level_text = 'Normal'; reasons.append('Water level below advisory threshold')
         else:
             # Fallback heuristics if thresholds missing
-            if current_max >= 1.8 or deviation_pct >= 80:
+            if current_max > 1.8 or deviation_pct > 80:
                 level_numeric = 4; level_text = 'Emergency'; reasons.append('Water level far above typical levels')
-            elif current_max >= 1.5 or deviation_pct >= 50:
+            elif current_max > 1.5 or deviation_pct > 50:
                 level_numeric = 3; level_text = 'Warning'; reasons.append('Water level significantly above typical levels')
-            elif current_max >= 1.2 or deviation_pct >= 20:
+            elif current_max > 1.2 or deviation_pct > 20:
                 level_numeric = 2; level_text = 'Watch'; reasons.append('Water level trending higher than normal')
-            elif current_max >= 1.0 or deviation_pct >= 10:
+            elif current_max > 1.0 or deviation_pct > 10:
                 level_numeric = 1; level_text = 'Advisory'; reasons.append('Water level slightly above normal')
             else:
                 level_numeric = 0; level_text = 'Normal'; reasons.append('Water level within normal range')
@@ -1924,15 +1924,15 @@ def threshold_visualization_parameter(request, parameter):
     def compute_severity(val, t):
         if val is None:
             return 0
-        if val >= t.catastrophic_threshold:
+        if val > t.catastrophic_threshold:
             return 5
-        elif val >= t.emergency_threshold:
+        elif val > t.emergency_threshold:
             return 4
-        elif val >= t.warning_threshold:
+        elif val > t.warning_threshold:
             return 3
-        elif val >= t.watch_threshold:
+        elif val > t.watch_threshold:
             return 2
-        elif val >= t.advisory_threshold:
+        elif val > t.advisory_threshold:
             return 1
         return 0
 
