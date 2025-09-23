@@ -8,6 +8,10 @@ import math
 import logging
 import requests
 from datetime import timedelta
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except Exception:
+    ZoneInfo = None
 
 # Import ML model functions
 from flood_monitoring.ml.flood_prediction_model import predict_flood_probability, get_affected_barangays as ml_get_affected_barangays
@@ -177,6 +181,100 @@ def get_severity_name(severity_level):
         5: 'Catastrophic'
     }
     return severity_names.get(severity_level, 'Unknown')
+
+
+# ---------------- Chart Data for Trends ----------------
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def chart_data(request):
+    """Return time-series data for a parameter to plot the trends chart.
+
+    Query params:
+      - type: temperature|humidity|rainfall|water_level|wind_speed (required)
+      - municipality_id (optional)
+      - barangay_id (optional)
+      - range: 1w|1m|1y (optional)
+      - limit: integer (optional, default 10; ignored if range provided)
+
+    Response:
+    {
+      "labels": [ISO8601 ascending],
+      "labels_manila": ["DD Mon YYYY HH:mm:ss" local to Asia/Manila],
+      "values": [float|null]
+    }
+    """
+    param = request.GET.get('type') or request.GET.get('parameter')
+    if not param:
+        return Response({
+            'labels': [], 'labels_manila': [], 'values': [],
+            'error': 'Missing required query parameter: type'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    municipality_id = request.GET.get('municipality_id')
+    barangay_id = request.GET.get('barangay_id')
+    range_key = (request.GET.get('range') or '').lower().strip()
+    try:
+        limit = int(request.GET.get('limit') or 10)
+        if limit <= 0:
+            limit = 10
+    except ValueError:
+        limit = 10
+
+    # Build base filters
+    filters = {'sensor__sensor_type': param}
+    if municipality_id:
+        filters['sensor__municipality_id'] = municipality_id
+    if barangay_id:
+        filters['sensor__barangay_id'] = barangay_id
+
+    now = timezone.now()
+    if range_key in ('1w', '1week', '7d'):
+        since = now - timedelta(days=7)
+        filters['timestamp__gte'] = since
+    elif range_key in ('1m', '1month', '30d'):
+        since = now - timedelta(days=30)
+        filters['timestamp__gte'] = since
+    elif range_key in ('1y', '1year', '12m', '365d'):
+        since = now - timedelta(days=365)
+        filters['timestamp__gte'] = since
+    # else: use limit-only
+
+    # Query and order ascending for chart
+    qs = SensorData.objects.filter(**filters).order_by('timestamp')
+    if 'timestamp__gte' not in filters:
+        # No range provided; slice to latest `limit` then re-order ascending
+        # Note: Using values_list for efficiency once we have ids
+        latest_ids = list(SensorData.objects.filter(**filters).order_by('-timestamp').values_list('id', flat=True)[:limit])
+        qs = SensorData.objects.filter(id__in=latest_ids).order_by('timestamp')
+
+    # Graceful fallback: if barangay specified but no data, fall back to municipality-wide (barangay null)
+    if not qs.exists() and barangay_id and municipality_id:
+        muni_filters = {
+            'sensor__sensor_type': param,
+            'sensor__municipality_id': municipality_id,
+            'sensor__barangay__isnull': True,
+        }
+        if 'timestamp__gte' in filters:
+            muni_filters['timestamp__gte'] = filters['timestamp__gte']
+        qs = SensorData.objects.filter(**muni_filters).order_by('timestamp')
+        if 'timestamp__gte' not in filters:
+            latest_ids = list(SensorData.objects.filter(**muni_filters).order_by('-timestamp').values_list('id', flat=True)[:limit])
+            qs = SensorData.objects.filter(id__in=latest_ids).order_by('timestamp')
+
+    # Serialize into simple arrays
+    labels, labels_manila, values = [], [], []
+    manila_tz = ZoneInfo('Asia/Manila') if ZoneInfo else None
+    for sd in qs:
+        ts = sd.timestamp
+        labels.append(ts.isoformat())
+        try:
+            loc = timezone.localtime(ts, manila_tz) if manila_tz else timezone.localtime(ts)
+            labels_manila.append(loc.strftime('%d %b %Y %H:%M:%S'))
+        except Exception:
+            labels_manila.append(ts.isoformat())
+        values.append(sd.value)
+
+    return Response({'labels': labels, 'labels_manila': labels_manila, 'values': values})
 
 
 @csrf_exempt
@@ -457,7 +555,15 @@ class FloodAlertViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(affected_barangays__municipality_id=municipality_id).distinct()
         
         if barangay_id:
-            queryset = queryset.filter(affected_barangays__id=barangay_id)
+            # Prefer alerts specifically targeting this barangay (single-target) over
+            # municipality-wide or legacy alerts that include many barangays.
+            # We annotate the number of affected barangays and order with singles first.
+            queryset = (
+                queryset
+                .filter(affected_barangays__id=barangay_id)
+                .annotate(affected_count=Count('affected_barangays', distinct=True))
+                .order_by('affected_count', '-severity_level', '-issued_at')
+            )
             
         return queryset
     
@@ -1231,7 +1337,7 @@ def get_map_data(request):
     province = request.GET.get('province', None)
     region_1 = request.GET.get('region_1', None)
 
-        # Base querysets
+    # Base querysets
     sensors_queryset = Sensor.objects.filter(active=True)
     zones_queryset = FloodRiskZone.objects.all()
     barangays_queryset = Barangay.objects.all()
@@ -1334,6 +1440,94 @@ def get_map_data(request):
         'sensors': sensor_data,
         'zones': zone_data,
         'barangays': barangay_data
+    })
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def heatmap_points(request):
+    """Return precomputed heatmap points as [lat, lng, intensity] using
+    latest sensor readings vs configured thresholds per barangay.
+
+    Query params:
+      - municipality_id (optional)
+      - barangay_id (optional)
+    """
+    municipality_id = request.GET.get('municipality_id')
+    barangay_id = request.GET.get('barangay_id')
+
+    # Load thresholds once and index by parameter
+    thresholds = {t.parameter: t for t in ThresholdSetting.objects.all()}
+
+    # Build barangay queryset with filters
+    b_qs = Barangay.objects.all()
+    if municipality_id:
+        b_qs = b_qs.filter(municipality_id=municipality_id)
+    if barangay_id:
+        b_qs = b_qs.filter(id=barangay_id)
+
+    def eval_level(val, ts):
+        if val is None or ts is None:
+            return 0
+        if val >= ts.catastrophic_threshold: return 5
+        if val >= ts.emergency_threshold:    return 4
+        if val >= ts.warning_threshold:      return 3
+        if val >= ts.watch_threshold:        return 2
+        if val >= ts.advisory_threshold:     return 1
+        return 0
+
+    points = []
+
+    for b in b_qs.iterator():
+        # Compute highest severity for this barangay from latest per-parameter readings
+        highest = 0
+        for param, ts in thresholds.items():
+            latest = SensorData.objects.filter(
+                sensor__sensor_type=param,
+                sensor__barangay=b,
+            ).order_by('-timestamp').first()
+            if not latest and b.municipality_id:
+                latest = SensorData.objects.filter(
+                    sensor__sensor_type=param,
+                    sensor__municipality_id=b.municipality_id,
+                    sensor__barangay__isnull=True,
+                ).order_by('-timestamp').first()
+            if not latest:
+                latest = SensorData.objects.filter(
+                    sensor__sensor_type=param,
+                    sensor__municipality__isnull=True,
+                    sensor__barangay__isnull=True,
+                ).order_by('-timestamp').first()
+            lvl = eval_level(latest.value if latest else None, ts)
+            highest = max(highest, lvl)
+
+        # Turn severity into heat intensity with a small population weight
+        if b.latitude and b.longitude:
+            pop = b.population or 0
+            pop_w = min(1.5, (pop ** 0.5) / 1000.0)  # 0..~1.5
+            intensity = max(0.0, min(1.0, (highest / 5.0) * (0.7 + 0.3 * pop_w)))
+            if intensity > 0:
+                points.append([b.latitude, b.longitude, round(float(intensity), 3)])
+
+    # Also allow sensors to contribute small hints
+    sensors = Sensor.objects.filter(active=True)
+    if municipality_id:
+        sensors = sensors.filter(Q(municipality_id=municipality_id) | Q(municipality_id__isnull=True))
+    if barangay_id:
+        sensors = sensors.filter(Q(barangay_id=barangay_id) | Q(barangay_id__isnull=True))
+
+    for s in sensors:
+        latest = SensorData.objects.filter(sensor=s).order_by('-timestamp').first()
+        if not latest or not s.latitude or not s.longitude:
+            continue
+        # Normalize sensor value loosely to 0..1 and add as a lighter heat hint
+        intensity = max(0.0, min(1.0, (latest.value or 0) / 100.0)) * 0.6
+        if intensity > 0.2:
+            points.append([s.latitude, s.longitude, round(float(intensity), 3)])
+
+    return Response({
+        'points': points,
+        'count': len(points),
+        'filters': {'municipality_id': municipality_id, 'barangay_id': barangay_id}
     })
 
 @api_view(['POST'])

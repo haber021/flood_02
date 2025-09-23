@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flood Monitoring System {% block title %}{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%230d6efd'/%3E%3Cpath d='M3 9c2.5 0 2.5 2 5 2s2.5-2 5-2' stroke='%23fff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"/>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -144,25 +145,7 @@
     <!-- Chart.js and plugins -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script>
-        // Register the zoom plugin globally
-        if (Chart && Chart.register) {
-            try {
-                // Ensure the plugin is available under the correct name
-                const zoomPlugin = window.ChartZoom || window.chartjs_plugin_zoom;
-                if (zoomPlugin) {
-                    Chart.register(zoomPlugin);
-                    console.log('Chart.js zoom plugin registered successfully');
-                } else {
-                    console.warn('Chart.js zoom plugin not found in global namespace');
-                }
-            } catch (e) {
-                console.error('Failed to register Chart.js zoom plugin:', e);
-            }
-        }
-    </script>
+    <!-- Removed Chart.js zoom plugin to avoid scriptable recursion errors in current configuration -->
     
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

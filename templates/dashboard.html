@@ -27,34 +27,56 @@
     .location-selector select { padding: 8px 15px; border: 1px solid var(--border); border-radius: 6px; background-color: white; font-family: 'Poppins', sans-serif; }
     .apply-btn { padding: 8px 12px; border: 1px solid var(--primary); background: var(--primary); color: #fff; border-radius: 6px; cursor: pointer; font-weight: 500; }
     .apply-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-    .modern-card { background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); padding: 20px; margin-bottom: 20px; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: stretch; }
+    .modern-card { background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); padding: 20px; margin-bottom: 0; display: flex; flex-direction: column; }
     .card-header-modern { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
     .card-title-modern { font-size: 18px; font-weight: 600; color: var(--dark); }
     .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
     .status-normal { background-color: #dcfce7; color: #16a34a; }
     .status-warning { background-color: #fef3c7; color: #d97706; }
     .status-danger { background-color: #fee2e2; color: #dc2626; }
-    .weather-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-    .weather-item { display: flex; flex-direction: column; align-items: center; padding: 16px; background-color: #f8fafc; border-radius: 10px; border-left: 4px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: background-color .2s ease, border-color .2s ease, transform .15s ease; }
-    .weather-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-    .weather-value { font-size: 26px; font-weight: 700; margin: 6px 0; }
+    /* Segmented button group for chart range */
+    .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; }
+    .segmented button { border: none; background: transparent; padding: 6px 10px; font-size: 12px; color: #475569; cursor: pointer; }
+    .segmented button + button { border-left: 1px solid var(--border); }
+    .segmented button.active { background: #eef2ff; color: var(--primary); font-weight: 600; }
+    /* Make Weather Conditions card span full width of the 3-column grid */
+    .weather-card { grid-column: 1 / -1; }
+    /* Weather section header (inside .modern-card > header) */
+    .modern-card > header { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display:flex; align-items:center; justify-content: space-between; gap: 10px; }
+    .modern-card > header h1 { font-size: 20px; font-weight: 700; color: var(--dark); display:flex; align-items:center; gap:10px; }
+    .modern-card > header h1 .fas { color: var(--primary); }
+    .modern-card > header .subtitle { color: var(--gray); font-size: 13px; }
+
+    /* Weather card specific tweaks */
+    .weather-card > header { margin: 0 0 10px 0; padding: 0 0 8px 0; }
+    .weather-card > header h1 { font-size: 18px; font-weight: 700; line-height: 1.25; }
+    .weather-card > header .subtitle { font-size: 12px; margin: 0; color: var(--gray); }
+
+    .weather-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-items: stretch; }
+    /* Each metric is now a grid item via the container */
+    .weather-metric { display: block; align-self: stretch; }
+    /* Ensure consistent card height for visual uniformity */
+    .weather-item { min-height: 160px; height: 100%; }
+    .weather-item { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 18px; background-color: #ffffff; border-radius: 10px; border: 1px solid var(--border); border-left-width: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); transition: border-color .2s ease, transform .15s ease; }
+    .weather-item:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+    .weather-value { font-size: 28px; font-weight: 800; margin: 6px 0; }
     .weather-label { font-size: 14px; color: var(--gray); }
-    .weather-icon { font-size: clamp(18px, 2.2vw, 26px); color: #94a3b8; margin-bottom: 6px; transition: color .2s ease; }
-    .weather-sub { font-size: 12px; color: var(--gray); margin-top: 6px; }
+    .weather-icon { font-size: clamp(22px, 2.4vw, 30px); color: #94a3b8; margin-bottom: 6px; transition: color .2s ease; }
+    .weather-sub { font-size: 13px; color: var(--gray); margin-top: 8px; }
 
     /* Status chip (Normal/Watch/Warning/Emergency) */
-    .status-chip { display: inline-block; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 600; margin-top: 4px; }
+    .status-chip { display: inline-block; padding: 6px 12px; border-radius: 18px; font-size: 13px; font-weight: 700; margin-top: 6px; }
     .status-chip.normal { background: #e8f6f3; color: #16a34a; }
     .status-chip.info { background: #e6f1ff; color: #0ea5e9; }
     .status-chip.warning { background: #fff4db; color: #d97706; }
     .status-chip.danger { background: #ffe5e5; color: #dc2626; }
 
-    /* Severity-driven visual styles (applied by JS) */
-    .weather-item.sev-0 { border-left-color: #16a34a; background: #f0fdf4; }
-    .weather-item.sev-1, .weather-item.sev-2 { border-left-color: #0ea5e9; background: #eff6ff; }
-    .weather-item.sev-3 { border-left-color: #f59e0b; background: #fffbeb; }
-    .weather-item.sev-4, .weather-item.sev-5 { border-left-color: #ef4444; background: #fef2f2; }
+    /* Severity-driven visual styles (border-left only to keep white cards) */
+    .weather-item.sev-0 { border-left-color: #16a34a; background: #ffffff; }
+    .weather-item.sev-1, .weather-item.sev-2 { border-left-color: #0ea5e9; background: #ffffff; }
+    .weather-item.sev-3 { border-left-color: #f59e0b; background: #ffffff; }
+    .weather-item.sev-4, .weather-item.sev-5 { border-left-color: #ef4444; background: #ffffff; }
     .weather-item.sev-0 .weather-value { color: #16a34a; }
     .weather-item.sev-1 .weather-value, .weather-item.sev-2 .weather-value { color: #0ea5e9; }
     .weather-item.sev-3 .weather-value { color: #d97706; }
@@ -70,17 +92,62 @@
     .risk-medium { background-color: var(--warning); }
     .risk-high { background-color: var(--danger); }
     /* Map container must have explicit height so Leaflet can size tiles correctly */
-    .map-placeholder { width: 100%; height: clamp(260px, 35vh, 520px); background-color: #e2e8f0; border-radius: 8px; margin: 15px 0; display: block; overflow: hidden; }
+    .map-placeholder {
+        width: 100%;
+        height: clamp(260px, 35vh, 520px);
+        background-color: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin: 10px 0 0 0; /* remove extra bottom spacing */
+        display: block;
+        overflow: hidden; /* clip tiles/controls to rounded corners */
+    }
     /* Ensure Leaflet map uses full width/height of its container and inherits rounded corners */
-    #flood-map.leaflet-container { width: 100% !important; height: 100% !important; border-radius: 8px; }
+    #flood-map.leaflet-container {
+        width: 100% !important;
+        height: 100% !important;
+        border-radius: 10px;
+        outline: none;
+    }
+    /* Pull in controls a bit so they don't touch rounded edges */
+    #flood-map .leaflet-top.leaflet-left { top: 8px; left: 8px; }
+    #flood-map .leaflet-top.leaflet-right { top: 8px; right: 8px; }
+    #flood-map .leaflet-bottom.leaflet-right { right: 8px; bottom: 8px; }
+    /* Nudge attribution inside the rounded area to avoid clipping */
+    #flood-map .leaflet-control-attribution { margin: 0 6px 6px 0; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.85); }
     .alert-card { display: flex; align-items: center; padding: 15px; background-color: #f0f9ff; border-left: 4px solid var(--primary); border-radius: 8px; margin-bottom: 15px; }
     .alert-icon { margin-right: 15px; font-size: 24px; color: var(--primary); }
-    .chart-container-modern { height: 250px; margin-top: 15px; }
+    .chart-container-modern { height: 320px; margin-top: 15px; }
+    @media (min-width: 1025px) { .chart-container-modern { height: 380px; } }
+    @media (max-width: 640px) { .chart-container-modern { height: 280px; } }
     .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     .data-table th, .data-table td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
     .data-table th { font-weight: 600; color: var(--gray); font-size: 14px; }
+    /* Flood Risk Map card layout */
+    .map-card-body { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: stretch; flex-grow: 1; }
+    /* Ensure map shows first, Locations second */
+    .map-container { order: 1; }
+    .map-locations { order: 2; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .map-locations-title { font-weight: 600; margin-bottom: 8px; color: var(--dark); }
+    .map-locations-list { overflow: auto; max-height: clamp(220px, 32vh, 480px); padding-right: 4px; }
+    .map-locations-empty { color: var(--gray); font-size: 14px; padding: 8px; }
+    .map-loc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background-color .15s ease; }
+    .map-loc-item:hover { background: #eef2ff; }
+    .map-loc-item.active { background: #e0e7ff; }
+    .map-loc-name { font-weight: 500; color: #1f2937; }
+    .map-loc-pop { color: var(--gray); font-size: 12px; }
+    .map-legend { margin-top: 10px; }
+    .map-container { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #f8fafc; }
+    /* Hide built-in attribution; we show it in the footer instead */
+    #flood-map .leaflet-control-attribution { display: none; }
+    /* Responsive adjustments (kept single-column so map stays wide) */
+    @media (max-width: 1024px) { .map-card-body { grid-template-columns: 1fr; } }
     .footer-modern { text-align: center; margin-top: 30px; padding: 20px; color: var(--gray); font-size: 14px; border-top: 1px solid var(--border); }
-    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr 1fr; } }
+    /* Desktop: 5 columns */
+    @media (min-width: 1025px) {
+        .weather-grid { grid-template-columns: repeat(5, 1fr); }
+    }
+    @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr 1fr; } .weather-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } .weather-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 {% endblock %}
@@ -103,51 +170,73 @@
 
     <div class="dashboard-grid">
         <!-- Weather Conditions Card -->
-        <div class="modern-card">
-            <div class="card-header-modern">
-                <div class="card-title-modern">Weather Conditions</div>
-            </div>
+        <div class="modern-card weather-card">
+            <header>
+                <h1><i class="fas fa-cloud-sun-rain"></i> Weather Conditions</h1>
+            </header>
             <div class="weather-grid">
-                <div class="weather-item">
-                    <div class="weather-icon"><i class="fas fa-temperature-high"></i></div>
-                    <div class="weather-label">Temperature</div>
-                    <div class="weather-value" id="temperature-value">--</div>
-                    <div class="status-chip normal" id="temperature-status">Normal</div>
-                    <div class="weather-sub" id="temperature-extra"></div>
+                <div class="weather-metric">
+                    <div class="weather-item">
+                        <div class="weather-icon"><i class="fas fa-temperature-high"></i></div>
+                        <div class="weather-label">Temperature</div>
+                        <div class="weather-value" id="temperature-value">--</div>
+                        <div class="status-chip normal" id="temperature-status">Normal</div>
+                        <div class="weather-sub" id="temperature-extra"></div>
+                    </div>
                 </div>
-                <div class="weather-item">
-                    <div class="weather-icon"><i class="fas fa-tint"></i></div>
-                    <div class="weather-label">Humidity</div>
-                    <div class="weather-value" id="humidity-value">--</div>
-                    <div class="status-chip normal" id="humidity-status">Normal</div>
-                    <div class="weather-sub" id="humidity-extra"></div>
+                <div class="weather-metric">
+                    <div class="weather-item">
+                        <div class="weather-icon"><i class="fas fa-tint"></i></div>
+                        <div class="weather-label">Humidity</div>
+                        <div class="weather-value" id="humidity-value">--</div>
+                        <div class="status-chip normal" id="humidity-status">Normal</div>
+                        <div class="weather-sub" id="humidity-extra"></div>
+                    </div>
                 </div>
-                <div class="weather-item">
-                    <div class="weather-icon"><i class="fas fa-cloud-rain"></i></div>
-                    <div class="weather-label">Rainfall</div>
-                    <div class="weather-value" id="rainfall-value">--</div>
-                    <div class="status-chip normal" id="rainfall-status">Normal</div>
-                    <div class="weather-sub" id="rainfall-extra"></div>
+                <div class="weather-metric">
+                    <div class="weather-item">
+                        <div class="weather-icon"><i class="fas fa-cloud-rain"></i></div>
+                        <div class="weather-label">Rainfall</div>
+                        <div class="weather-value" id="rainfall-value">--</div>
+                        <div class="status-chip normal" id="rainfall-status">Normal</div>
+                        <div class="weather-sub" id="rainfall-extra"></div>
+                    </div>
                 </div>
-                <div class="weather-item">
-                    <div class="weather-icon"><i class="fas fa-water"></i></div>
-                    <div class="weather-label">Water Level</div>
-                    <div class="weather-value" id="water-level-value">--</div>
-                    <div class="status-chip normal" id="water-level-status">Normal</div>
-                    <div class="weather-sub" id="water-level-extra"></div>
+                <div class="weather-metric">
+                    <div class="weather-item">
+                        <div class="weather-icon"><i class="fas fa-water"></i></div>
+                        <div class="weather-label">Water Level</div>
+                        <div class="weather-value" id="water-level-value">--</div>
+                        <div class="status-chip normal" id="water-level-status">Normal</div>
+                        <div class="weather-sub" id="water-level-extra"></div>
+                    </div>
                 </div>
-                <div class="weather-item">
-                    <div class="weather-icon"><i class="fas fa-wind"></i></div>
-                    <div class="weather-label">Wind Speed</div>
-                    <div class="weather-value" id="wind-speed-value">--</div>
-                    <div class="status-chip normal" id="wind-speed-status">Normal</div>
-                    <div class="weather-sub" id="wind-speed-extra"></div>
+                <div class="weather-metric">
+                    <div class="weather-item">
+                        <div class="weather-icon"><i class="fas fa-wind"></i></div>
+                        <div class="weather-label">Wind Speed</div>
+                        <div class="weather-value" id="wind-speed-value">--</div>
+                        <div class="status-chip normal" id="wind-speed-status">Normal</div>
+                        <div class="weather-sub" id="wind-speed-extra"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Alert Status Card -->
-        <div class="modern-card">
+        <!-- Current Location Card (first card in second row) -->
+        <div class="modern-card" id="current-location-card">
+            <div class="card-header-modern">
+                <div class="card-title-modern"><i class="fas fa-location-dot" style="color:var(--primary);"></i> Current Location</div>
+            </div>
+            <div>
+                <div style="font-weight:700; font-size:18px;" id="current-muni">—</div>
+                <div style="font-weight:600; color:#475569; margin-top:2px;" id="current-brgy">—</div>
+                <p style="color:var(--gray); margin-top:8px;" id="current-location-note">Monitoring environmental conditions continuously.</p>
+            </div>
+        </div>
+
+        <!-- Alert Status Card (span 2 columns) -->
+        <div class="modern-card" style="grid-column: span 2;">
             <div class="card-header-modern">
                 <div class="card-title-modern">Alert Status</div>
                 <div class="status-badge status-normal" id="alert-status-badge">Normal</div>
@@ -165,40 +254,39 @@
             </div>
         </div>
 
-        <!-- Flood Risk Map Card -->
-        <div class="modern-card">
+        <!-- Flood Risk Map Card (Header / Body / Footer) -->
+        <div class="modern-card" style="grid-column: span 2;">
             <div class="card-header-modern">
                 <div class="card-title-modern">Flood Risk Map</div>
             </div>
-            <div id="flood-map" class="map-placeholder">[Interactive Flood Risk Map]</div>
-            <div class="risk-indicator">
-                <div class="risk-color risk-low"></div>
-                <div>Low Risk</div>
+            <div class="map-card-body">
+                <!-- Map first, full width -->
+                <div class="map-container">
+                    <div id="flood-map" class="map-placeholder">[Interactive Flood Risk Map]</div>
+                </div>
+                <!-- Locations below the map -->
+                <div class="map-locations">
+                    <div class="map-locations-title">Locations</div>
+                    <div id="map-locations-list" class="map-locations-list">
+                        <!-- Filled by JS from /api/map-data/ (barangays) -->
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                        <input type="checkbox" id="heatmap-toggle" />
+                        <label for="heatmap-toggle" style="cursor:pointer;user-select:none;">Heatmap</label>
+                    </div>
+                    <div class="map-legend">
+                        <div class="risk-indicator"><div class="risk-color risk-low"></div><div>Low Risk</div></div>
+                        <div class="risk-indicator"><div class="risk-color risk-medium"></div><div>Medium Risk</div></div>
+                        <div class="risk-indicator"><div class="risk-color risk-high"></div><div>High Risk</div></div>
+                    </div>
+                </div>
             </div>
-            <div class="risk-indicator">
-                <div class="risk-color risk-medium"></div>
-                <div>Medium Risk</div>
-            </div>
-            <div class="risk-indicator">
-                <div class="risk-color risk-high"></div>
-                <div>High Risk</div>
-            </div>
-            <div style="margin-top: 15px; font-size: 14px; color: var(--gray);">
-                Last updated: <span id="map-last-updated">{{ current_time_manila|default:"--" }}</span>
+            <div class="map-card-footer">
+                <small>Last updated: <span id="map-last-updated">{{ current_time_manila|default:"--" }}</span> • Map data © OpenStreetMap contributors</small>
             </div>
         </div>
 
-        <!-- Environmental Data Trends Card -->
-        <div class="modern-card" style="grid-column: span 2;">
-            <div class="card-header-modern">
-                <div class="card-title-modern">Environmental Data Trends</div>
-            </div>
-            <div class="chart-container-modern">
-                <canvas id="trends-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- Affected Areas Card -->
+        <!-- Affected Areas Card (single column next to wider map) -->
         <div class="modern-card">
             <div class="card-header-modern">
                 <div class="card-title-modern">Affected Areas</div>
@@ -217,6 +305,26 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Environmental Data Trends Card (full-width row) -->
+        <div class="modern-card" style="grid-column: 1 / -1;">
+            <div class="card-header-modern">
+                <div class="card-title-modern">Environmental Data Trends</div>
+                <div class="segmented" id="trends-range">
+                    <button type="button" data-range="latest" class="active">Latest</button>
+                    <button type="button" data-range="1w">1W</button>
+                    <button type="button" data-range="1m">1M</button>
+                    <button type="button" data-range="1y">1Y</button>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; color: var(--gray); font-size: 13px; margin-top: -4px;">
+                <span id="trends-desc">Showing latest 10 readings per parameter</span>
+                <span id="trends-updated-at">Last updated: —</span>
+            </div>
+            <div class="chart-container-modern">
+                <canvas id="trends-chart"></canvas>
+            </div>
+        </div>
     </div>
 
     <div class="footer-modern">
@@ -226,5 +334,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script src="/static/js/modern_dashboard.js"></script>
 {% endblock %}

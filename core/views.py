@@ -335,12 +335,34 @@ def get_chart_data(request):
     Both modes respect optional municipality_id and barangay_id filters.
     """
     chart_type = request.GET.get('type', 'temperature')
-    # Optional: fetch latest N readings
+    # Optional: fetch latest N readings or by time window
+    # Backwards/forwards compatibility: support 'range' (latest|1w|1m|1y)
+    range_param = (request.GET.get('range') or '').strip().lower()
     try:
         limit = int(request.GET.get('limit')) if request.GET.get('limit') is not None else None
     except Exception:
         limit = None
-    days = int(request.GET.get('days', 1))
+    try:
+        days = int(request.GET.get('days')) if request.GET.get('days') is not None else None
+    except Exception:
+        days = None
+    # Map range -> limit/days only if explicit limit/days were not provided
+    if (limit is None and days is None) and range_param:
+        if range_param == 'latest':
+            limit = 10
+        elif range_param == '1w':
+            days = 7
+        elif range_param == '1m':
+            days = 30
+        elif range_param == '1y':
+            days = 365
+    # Final fallbacks/guards
+    if limit is not None and limit <= 0:
+        limit = None
+    if days is None:
+        days = 1
+    elif days <= 0:
+        days = 1
     historical = request.GET.get('historical', 'false').lower() == 'true'
     
     # Get location filters if provided
@@ -428,6 +450,29 @@ def get_chart_data(request):
                 'timestamp__lte': end_date
             }
             data = SensorData.objects.filter(**global_filters).order_by('timestamp')
+
+    # Backend fallbacks when no data collected so far
+    try:
+        if not data:
+            if limit and limit > 0:
+                # Retry without location filters across all sensors of this type
+                alt = (
+                    SensorData.objects
+                    .filter(sensor__sensor_type=chart_type)
+                    .order_by('-timestamp')[:limit]
+                )
+                data = list(alt)
+                data.reverse()
+            else:
+                # Retry across all sensors of this type in the time window
+                alt = (
+                    SensorData.objects
+                    .filter(sensor__sensor_type=chart_type, timestamp__gte=start_date, timestamp__lte=end_date)
+                    .order_by('timestamp')
+                )
+                data = list(alt)
+    except Exception:
+        pass
     
     # Format timestamps based on the time range
     if days >= 30:  # Monthly view
