@@ -39,10 +39,50 @@
         if (state.chart && state._rawSeries && Array.isArray(state.chart.data.labels)) {
           applyChartScaling(state._rawSeries);
           try {
-        state.chart.update();
-      } catch (e) {
-        recreateChart([], { t:[], h:[], r:[], wl:[], ws:[] });
+            // Temporarily disable events to avoid hover processing during update
+            const prevEvents = state.chart.options && state.chart.options.events ? state.chart.options.events.slice() : undefined;
+            if (state.chart.options) state.chart.options.events = [];
+            hardenScaleOptions(state.chart);
+            sanitizeChartData(state.chart);
+            hardenDatasets(state.chart);
+            deepPlainChartConfig(state.chart);
+            state.chart.update();
+            if (prevEvents) state.chart.options.events = prevEvents; else if (state.chart.options) delete state.chart.options.events;
+          } catch (e) {
+            recreateChart([], { t:[], h:[], r:[], wl:[], ws:[] });
+          }
+
+  // Deep-clone chart data and options to plain JSON to remove any proxies/functions
+  function deepPlainChartConfig(chart) {
+    try {
+      if (!chart) return;
+      // Sanitize labels first
+      const labels = Array.isArray(chart.data?.labels) ? chart.data.labels.map(l => (l == null ? '' : String(l))) : [];
+      const dataPlain = JSON.parse(JSON.stringify({ labels, datasets: chart.data?.datasets || [] }));
+      const optsPlain = JSON.parse(JSON.stringify(chart.options || {}));
+      chart.data = dataPlain;
+      chart.options = optsPlain;
+    } catch (e) { /* ignore */ }
+  }
+
+  // Ensure dataset properties that Chart.js expects as strings/booleans are properly typed (defensive)
+  function hardenDatasets(chart) {
+    try {
+      if (!chart || !chart.data) return;
+      const ds = Array.isArray(chart.data.datasets) ? chart.data.datasets : [];
+      for (let i = 0; i < ds.length; i++) {
+        const d = ds[i] || {};
+        if (d.label != null && typeof d.label !== 'string') d.label = String(d.label);
+        if (d.yAxisID != null && typeof d.yAxisID !== 'string') d.yAxisID = String(d.yAxisID);
+        if (d.borderColor != null && typeof d.borderColor !== 'string') d.borderColor = String(d.borderColor);
+        if (d.backgroundColor != null && typeof d.backgroundColor !== 'string') d.backgroundColor = String(d.backgroundColor);
+        if (d.pointBorderColor != null && typeof d.pointBorderColor !== 'string') d.pointBorderColor = String(d.pointBorderColor);
+        if (d.pointBackgroundColor != null && typeof d.pointBackgroundColor !== 'string') d.pointBackgroundColor = String(d.pointBackgroundColor);
+        if (d.cubicInterpolationMode != null && typeof d.cubicInterpolationMode !== 'string') d.cubicInterpolationMode = String(d.cubicInterpolationMode);
+        if (typeof d.fill !== 'boolean') d.fill = false;
       }
+    } catch (e) { /* ignore */ }
+  }
         } else {
           // Fallback: reload
           loadTrendsChart();
@@ -94,6 +134,19 @@
 
   // ===== Helpers defined at IIFE scope (not inside DOMContentLoaded/handlers) =====
 
+  // Ensure global point defaults exist to avoid undefined hitRadius/hoverRadius
+  function ensureChartGlobalPointDefaults() {
+    try {
+      if (!window.Chart || !Chart.defaults) return;
+      const p = (Chart.defaults.elements = Chart.defaults.elements || {}).point = (Chart.defaults.elements.point || {});
+      if (typeof p.radius !== 'number') p.radius = 4;
+      if (typeof p.hoverRadius !== 'number') p.hoverRadius = 6;
+      if (typeof p.hitRadius !== 'number') p.hitRadius = 6;
+      if (typeof p.borderWidth !== 'number') p.borderWidth = 2;
+      if (!p.backgroundColor) p.backgroundColor = '#ffffff';
+    } catch (e) { /* ignore */ }
+  }
+
   async function fetchHeatmapPoints() {
     try {
       const params = [];
@@ -131,6 +184,7 @@
         proceed();
       }
     });
+    try { hardenScaleOptions(state.chart); hardenDatasets(state.chart); } catch (_) {}
   }
 
   // Convert API data to heatmap points [lat, lng, intensity]
@@ -913,6 +967,9 @@
       }
     });
 
+    // Ensure scales are replaced with plain objects up-front
+    try { hardenScaleOptions(state.chart); } catch (_) {}
+
     // Debounced/observed resize handling to fix tile alignment in grids
     const invalidate = () => { try { state.map && state.map.invalidateSize(true); } catch (e) {} };
     // Initial invalidate passes after render to avoid fractional height gaps
@@ -1096,133 +1153,102 @@
   function initChart() {
     const canvas = document.getElementById('trends-chart');
     if (!canvas || !window.Chart) return;
+    ensureChartGlobalPointDefaults();
     // If an old chart exists (e.g., from hot reload), destroy it first
     try { if (state.chart && state.chart.destroy) state.chart.destroy(); } catch (_) {}
     state.chart = new Chart(canvas, {
-      type: 'line',
-      data: { labels: [], datasets: [
-        // Left axis (Temp/Humidity)
-        themedDataset('Temperature (°C)', 'rgba(239,68,68,1)', 'y'),
-        themedDataset('Humidity (%)',     'rgba(14,165,233,1)', 'y'),
-        // Right axis (Rain/Water/Wind)
-        themedDataset('Rainfall (mm)',    'rgba(59,130,246,1)', 'y1'),
-        themedDataset('Water Level (m)',  'rgba(16,185,129,1)', 'y1'),
-        themedDataset('Wind Speed (km/h)','rgba(168,85,247,1)', 'y1'),
-      ]},
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        spanGaps: true,
-        interaction: { mode: 'index', intersect: false },
-        parsing: false,
-        elements: {
-          line: { tension: 0.2, borderWidth: 2 },
-          point: { radius: 4, hoverRadius: 6, borderWidth: 2, backgroundColor: '#ffffff' }
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                themedDataset('Temperature (°C)', 'rgba(239,68,68,1)', 'y'),
+                themedDataset('Humidity (%)', 'rgba(14,165,233,1)', 'y'),
+                themedDataset('Rainfall (mm)', 'rgba(59,130,246,1)', 'y1'),
+                themedDataset('Water Level (m)', 'rgba(16,185,129,1)', 'y1'),
+                themedDataset('Wind Speed (km/h)', 'rgba(168,85,247,1)', 'y1'),
+            ]
         },
-        animation: { duration: 0 },
-        transitions: { active: { animation: { duration: 0 } }, resize: { animation: { duration: 0 } } },
-        plugins: {
-          legend: { position: 'top' },
-          tooltip: { enabled: true },
-          // Explicitly disable zoom/pan to avoid scriptable recursion from plugin defaults
-          zoom: { pan: { enabled: false }, zoom: { wheel: { enabled: false }, pinch: { enabled: false }, drag: { enabled: false } } }
-        },
-        scales: {
-          x: { type: 'category', grid: { display: false } },
-          y: {
-            type: 'linear', position: 'left',
-            title: { display: true, text: 'Temperature (°C) / Humidity (%)' }
-          },
-          y1: {
-            type: 'linear', position: 'right',
-            title: { display: true, text: 'Rainfall (mm) / Water Level (m) / Wind (km/h)' },
-            grid: { drawOnChartArea: false }
-          }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            spanGaps: true, // Draw lines over null data points
+            interaction: { mode: 'index', intersect: false },
+            elements: {
+                line: { tension: 0.2, borderWidth: 2 },
+                point: { radius: 4, hoverRadius: 6, hitRadius: 6, borderWidth: 2, backgroundColor: '#ffffff' }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    enabled: true, // Enable tooltips
+                    callbacks: {
+                        title: function (tooltipItems) {
+                            if (!tooltipItems.length) return '';
+                            const item = tooltipItems[0];
+                            // The raw label is the ISO timestamp, format it for display
+                            const isoString = state.chart.data.isoLabels[item.dataIndex];
+                            return formatManilaFull(isoString);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { type: 'category', grid: { display: false } },
+                y: {
+                    type: 'linear', position: 'left',
+                    title: { display: true, text: 'Temperature (°C) / Humidity (%)' }
+                },
+                y1: {
+                    type: 'linear', position: 'right',
+                    title: { display: true, text: 'Rainfall (mm) / Water Level (m) / Wind (km/h)' },
+                    grid: { drawOnChartArea: false }
+                }
+            }
         }
-      }
     });
 
     // Helper to create themed dataset with outlined points
     function themedDataset(label, color, axis) {
-      return {
-        label,
-        data: [],
-        borderColor: color,
-        backgroundColor: 'transparent',
-        cubicInterpolationMode: 'monotone',
-        yAxisID: axis,
-        parsing: false,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointBorderColor: color,
-        pointBackgroundColor: '#ffffff',
-        pointBorderWidth: 2,
-        borderWidth: 2,
-        fill: false
-      };
+        return {
+            label,
+            data: [],
+            borderColor: color,
+            backgroundColor: 'transparent',
+            cubicInterpolationMode: 'monotone',
+            yAxisID: axis,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointHitRadius: 6,
+            pointBorderColor: color,
+            pointBackgroundColor: '#ffffff',
+            pointBorderWidth: 2,
+            borderWidth: 2,
+            fill: false
+        };
     }
   }
 
   function loadTrendsChart() {
-    // Ensure chart exists
-    if (!state.chart) { try { initChart(); } catch(e) {} }
     if (!state.chart || state._trendsFetchInFlight) return;
     state._trendsFetchInFlight = true;
-    // Optimistically set a starting timestamp so the UI doesn't show '—'
-    try {
-      const el = document.getElementById('trends-updated-at');
-      if (el && (!el.textContent || /—\s*$/.test(el.textContent))) {
-        el.textContent = `Last updated: ${formatManilaFull(new Date().toISOString())}`;
-      }
-    } catch (e) { /* ignore */ }
+    setChartOverlay('Loading trends data...');
 
-    // Loading overlay removed per request
+    const queries = [
+        fetchChart('temperature'),
+        fetchChart('humidity'),
+        fetchChart('rainfall'),
+        fetchChart('water_level'),
+        fetchChart('wind_speed'),
+    ];
 
-    const runOnce = (includeBarangayScope) => {
-      const queries = [
-        fetchChart('temperature', { includeBarangay: includeBarangayScope }),
-        fetchChart('humidity', { includeBarangay: includeBarangayScope }),
-        fetchChart('rainfall', { includeBarangay: includeBarangayScope }),
-        fetchChart('water_level', { includeBarangay: includeBarangayScope }),
-        fetchChart('wind_speed', { includeBarangay: includeBarangayScope }),
-      ];
-      return Promise.allSettled(queries);
-    };
-
-    runOnce(true).then(results => {
+    Promise.allSettled(queries).then(results => {
       const temp = (results[0].status === 'fulfilled') ? results[0].value : { labels: [], values: [] };
       const hum  = (results[1].status === 'fulfilled') ? results[1].value : { labels: [], values: [] };
       const rain = (results[2].status === 'fulfilled') ? results[2].value : { labels: [], values: [] };
       const water= (results[3].status === 'fulfilled') ? results[3].value : { labels: [], values: [] };
       const wind = (results[4].status === 'fulfilled') ? results[4].value : { labels: [], values: [] };
 
-      // Determine the latest timestamp across all series (consider ISO and Manila labels)
-      const allLabelArrays = [
-        temp.labels, temp.labelsManila,
-        hum.labels, hum.labelsManila,
-        rain.labels, rain.labelsManila,
-        water.labels, water.labelsManila,
-        wind.labels, wind.labelsManila,
-      ].filter(Boolean);
-      let latestIso = null;
-      const toDate = (s) => {
-        if (!s) return null;
-        // If string lacks timezone, assume UTC by appending 'Z'
-        const str = (typeof s === 'string' && !/Z|\+\d{2}:?\d{2}$/.test(s)) ? `${s}Z` : s;
-        const d = new Date(str);
-        return isNaN(d.getTime()) ? null : d;
-      };
-      try {
-        for (const arr of allLabelArrays) {
-          for (const ts of arr) {
-            const d = toDate(ts);
-            if (!d) continue;
-            if (!latestIso || d > new Date(latestIso)) latestIso = d.toISOString();
-          }
-        }
-      } catch (e) { /* ignore */ }
-
-      let merged = mergeSeries([
+      const merged = mergeSeries([
         { labels: temp.labels,  values: temp.values,  key: 't' },
         { labels: hum.labels,   values: hum.values,   key: 'h' },
         { labels: rain.labels,  values: rain.values,  key: 'r' },
@@ -1230,7 +1256,6 @@
         { labels: wind.labels,  values: wind.values,  key: 'ws' },
       ]);
 
-      // Early exit: if nothing came back, show a friendly overlay and reset chart
       const anyData = (() => {
         const s = merged.series || {};
         const keys = ['t','h','r','wl','ws'];
@@ -1242,216 +1267,72 @@
       })();
 
       if (!merged.labels.length || !anyData) {
-        // If barangay is selected, retry once without barangay_id (fallback to municipality-level data)
-        if (state.barangayId) {
-          return runOnce(false).then(results2 => {
-            const t2 = (results2[0].status === 'fulfilled') ? results2[0].value : { labels: [], values: [] };
-            const h2 = (results2[1].status === 'fulfilled') ? results2[1].value : { labels: [], values: [] };
-            const r2 = (results2[2].status === 'fulfilled') ? results2[2].value : { labels: [], values: [] };
-            const wL2= (results2[3].status === 'fulfilled') ? results2[3].value : { labels: [], values: [] };
-            const wS2= (results2[4].status === 'fulfilled') ? results2[4].value : { labels: [], values: [] };
-            const merged2 = mergeSeries([
-              { labels: t2.labels,  values: t2.values,  key: 't' },
-              { labels: h2.labels,  values: h2.values,  key: 'h' },
-              { labels: r2.labels,  values: r2.values,  key: 'r' },
-              { labels: wL2.labels, values: wL2.values, key: 'wl' },
-              { labels: wS2.labels, values: wS2.values, key: 'ws' },
-            ]);
-            const anyData2 = (() => {
-              const s = merged2.series || {};
-              const keys = ['t','h','r','wl','ws'];
-              for (const k of keys) {
-                const arr = s[k] || [];
-                if (arr.some(v => typeof v === 'number' && !isNaN(v))) return true;
-              }
-              return false;
-            })();
-            if (!merged2.labels.length || !anyData2) {
-              // If municipality is selected, final retry without municipality filter
-              if (state.municipalityId) {
-                const runNoMuni = () => Promise.allSettled([
-                  fetchChart('temperature', { includeBarangay: false, includeMunicipality: false }),
-                  fetchChart('humidity',    { includeBarangay: false, includeMunicipality: false }),
-                  fetchChart('rainfall',    { includeBarangay: false, includeMunicipality: false }),
-                  fetchChart('water_level', { includeBarangay: false, includeMunicipality: false }),
-                  fetchChart('wind_speed',  { includeBarangay: false, includeMunicipality: false }),
-                ]);
-                return runNoMuni().then(results3 => {
-                  const t3 = (results3[0].status === 'fulfilled') ? results3[0].value : { labels: [], values: [] };
-                  const h3 = (results3[1].status === 'fulfilled') ? results3[1].value : { labels: [], values: [] };
-                  const r3 = (results3[2].status === 'fulfilled') ? results3[2].value : { labels: [], values: [] };
-                  const wL3= (results3[3].status === 'fulfilled') ? results3[3].value : { labels: [], values: [] };
-                  const wS3= (results3[4].status === 'fulfilled') ? results3[4].value : { labels: [], values: [] };
-                  const merged3 = mergeSeries([
-                    { labels: t3.labels,  values: t3.values,  key: 't' },
-                    { labels: h3.labels,  values: h3.values,  key: 'h' },
-                    { labels: r3.labels,  values: r3.values,  key: 'r' },
-                    { labels: wL3.labels, values: wL3.values, key: 'wl' },
-                    { labels: wS3.labels, values: wS3.values, key: 'ws' },
-                  ]);
-                  const anyData3 = (() => {
-                    const s = merged3.series || {}; const keys = ['t','h','r','wl','ws'];
-                    for (const k of keys) { const arr = s[k] || []; if (arr.some(v => typeof v === 'number' && !isNaN(v))) return true; }
-                    return false;
-                  })();
-                  if (!merged3.labels.length || !anyData3) { showTrendsNoData(); return; }
-                  renderTrendsFromMerged(merged3, /*annotateFallback=*/true);
-                });
-              }
-              // Still no data; show empty state
-              showTrendsNoData();
-              return;
-            }
-            // Render with fallback and annotate scope
-            renderTrendsFromMerged(merged2, /*annotateFallback=*/true);
-          });
-        }
-        // No barangay selected -> if municipality is selected, try without municipality filter
-        if (state.municipalityId) {
-          const runNoMuni = () => Promise.allSettled([
-            fetchChart('temperature', { includeMunicipality: false }),
-            fetchChart('humidity',    { includeMunicipality: false }),
-            fetchChart('rainfall',    { includeMunicipality: false }),
-            fetchChart('water_level', { includeMunicipality: false }),
-            fetchChart('wind_speed',  { includeMunicipality: false }),
-          ]);
-          return runNoMuni().then(results3 => {
-            const t3 = (results3[0].status === 'fulfilled') ? results3[0].value : { labels: [], values: [] };
-            const h3 = (results3[1].status === 'fulfilled') ? results3[1].value : { labels: [], values: [] };
-            const r3 = (results3[2].status === 'fulfilled') ? results3[2].value : { labels: [], values: [] };
-            const wL3= (results3[3].status === 'fulfilled') ? results3[3].value : { labels: [], values: [] };
-            const wS3= (results3[4].status === 'fulfilled') ? results3[4].value : { labels: [], values: [] };
-            const merged3 = mergeSeries([
-              { labels: t3.labels,  values: t3.values,  key: 't' },
-              { labels: h3.labels,  values: h3.values,  key: 'h' },
-              { labels: r3.labels,  values: r3.values,  key: 'r' },
-              { labels: wL3.labels, values: wL3.values, key: 'wl' },
-              { labels: wS3.labels, values: wS3.values, key: 'ws' },
-            ]);
-            const anyData3 = (() => {
-              const s = merged3.series || {}; const keys = ['t','h','r','wl','ws'];
-              for (const k of keys) { const arr = s[k] || []; if (arr.some(v => typeof v === 'number' && !isNaN(v))) return true; }
-              return false;
-            })();
-            if (!merged3.labels.length || !anyData3) { showTrendsNoData(); return; }
-            renderTrendsFromMerged(merged3, /*annotateFallback=*/true);
-          });
-        }
-        // No municipality either -> show empty overlay
         showTrendsNoData();
-        return;
       }
 
-      // Store the original ISO labels for tooltips, but display compact Manila time on the axis
-      renderTrendsFromMerged(merged, /*annotateFallback=*/false);
+      renderTrendsFromMerged(merged);
+
     }).finally(() => {
       state._trendsFetchInFlight = false;
-      try {
-        const el = document.getElementById('trends-updated-at');
-        if (el && (!el.textContent || /—\s*$/.test(el.textContent))) {
+      const el = document.getElementById('trends-updated-at');
+      if (el) {
           el.textContent = `Last updated: ${formatManilaFull(new Date().toISOString())}`;
-        }
-      } catch (e) { /* ignore */ }
+      }
     });
   }
 
   function showTrendsNoData() {
     try {
-      if (!state.chart) { try { initChart(); } catch(e) {} if (!state.chart) return; }
+      if (!state.chart) return;
       state.chart.data.labels = [];
+      state.chart.data.isoLabels = [];
       state.chart.data.datasets.forEach(ds => { ds.data = []; });
-      const y = state.chart.options && state.chart.options.scales ? state.chart.options.scales.y : null;
-      const y1 = state.chart.options && state.chart.options.scales ? state.chart.options.scales.y1 : null;
-      if (y) { y.suggestedMin = 0; y.suggestedMax = 100; }
-      if (y1) { y1.suggestedMin = 0; y1.suggestedMax = 10; }
-      try { state.chart.update(); } catch (e) { recreateChart([], { t:[], h:[], r:[], wl:[], ws:[] }); }
-      const scopeMsg = state.barangayId ? 'No data for selected barangay. Auto-checking municipality data…' : 'No data available for the selected location.';
-      setChartOverlay(scopeMsg);
+      state.chart.update();
+      setChartOverlay('No data available for the selected location and time range.');
       const el = document.getElementById('trends-updated-at');
       if (el) el.textContent = 'Last updated: —';
     } catch (e) { /* ignore */ }
   }
 
-  // If Chart.js encounters plugin/scriptable recursion, rebuild with a minimal config
-  function recreateChart(labels, series) {
-    try {
-      const now = Date.now();
-      if (state._lastRecreateAt && (now - state._lastRecreateAt) < 2000) return;
-      state._lastRecreateAt = now;
-      const canvas = document.getElementById('trends-chart');
-      if (!canvas || !window.Chart) return;
-      const ctx = canvas.getContext && canvas.getContext('2d');
-      if (!ctx) return; // cannot draw (not in DOM or no 2D context)
-      // Destroy existing
-      try {
-        if (state.chart && state.chart.destroy) {
-          const old = state.chart; state.chart = null; old.destroy();
-        }
-      } catch (_) {}
-      // Build minimal datasets
-      const L = Array.isArray(labels) ? labels.length : 0;
-      const clamp = (arr) => (Array.isArray(arr) ? arr.slice(0, L) : new Array(L).fill(null));
-      const ds = [
-        { label: 'Temperature (°C)', data: clamp(series.t),  borderColor: 'rgba(239,68,68,1)', backgroundColor: 'transparent', yAxisID: 'y' },
-        { label: 'Humidity (%)',     data: clamp(series.h),  borderColor: 'rgba(14,165,233,1)', backgroundColor: 'transparent', yAxisID: 'y' },
-        { label: 'Rainfall (mm)',    data: clamp(series.r),  borderColor: 'rgba(59,130,246,1)', backgroundColor: 'transparent', yAxisID: 'y1' },
-        { label: 'Water Level (m)',  data: clamp(series.wl), borderColor: 'rgba(16,185,129,1)', backgroundColor: 'transparent', yAxisID: 'y1' },
-        { label: 'Wind Speed (km/h)',data: clamp(series.ws), borderColor: 'rgba(168,85,247,1)', backgroundColor: 'transparent', yAxisID: 'y1' },
-      ];
-      state.chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labels || [], datasets: ds },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          parsing: false,
-          animation: { duration: 0 },
-          plugins: { legend: { position: 'top' }, tooltip: { enabled: true } },
-          scales: { x: { type: 'category' }, y: { type: 'linear', position: 'left' }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } } }
-        }
-      });
-      // Recompute axis ranges
-      try { applyChartScaling(series); } catch (_) {}
-      try { state.chart.update(); } catch (_) {}
-    } catch (_) { /* swallow */ }
-  }
+  function renderTrendsFromMerged(merged) {
+    if (!state.chart) return;
 
-  function renderTrendsFromMerged(merged, annotateFallback) {
-    // Optionally filter by selected range on the client side
-    const filtered = filterMergedByRange(merged, state.trendsRange);
-    // If chart is not present, try to (re)initialize and bail out for this tick
-    if (!state.chart) { try { initChart(); } catch(e) {} return; }
-    // Store the original ISO labels for tooltips, but display compact Manila time on the axis
-    state.chart.__isoLabels = (filtered.labels || []).slice();
-    const displayLabels = (filtered.labels || []).map(formatManilaShort);
-    state.chart.data.labels = displayLabels;
-    // Cache raw series and apply scaling per current toggle
-    state._rawSeries = filtered.series;
-    applyChartScaling(filtered.series);
-    try {
-      state.chart.update();
-    } catch (e) {
-      // As a fallback, recreate a minimal chart on next tick to ensure canvas is ready
-      try { console.warn('[Trends] chart.update failed, recreating chart:', e && e.message ? e.message : e); } catch(_) {}
-      const labelsSafe = Array.isArray(state.chart.data.labels) ? state.chart.data.labels.slice() : [];
-      setTimeout(() => recreateChart(labelsSafe, filtered.series), 0);
-      return;
+    // Store raw series for normalization toggle
+    state._rawSeries = merged.series;
+    // Store original ISO labels for tooltips
+    state.chart.data.isoLabels = merged.labels;
+
+    // Create display labels (formatted time)
+    state.chart.data.labels = merged.labels.map(l => formatManilaShort(l));
+
+    // Apply scaling (either raw values or normalized 0-100)
+    applyChartScaling(merged.series);
+
+    // Update the chart
+    state.chart.update();
+
+    // Update timestamp
+    const el = document.getElementById('trends-updated-at');
+    if (el) {
+        const lastIso = merged.labels.length > 0 ? merged.labels[merged.labels.length - 1] : new Date().toISOString();
+        el.textContent = `Last updated: ${formatManilaFull(lastIso)}`;
     }
 
-    // Update 'Last updated'
-    try {
-      const el = document.getElementById('trends-updated-at');
-      if (el) {
-        const lastIso = (filtered.labels && filtered.labels.length)
-          ? filtered.labels[filtered.labels.length - 1]
-          : new Date().toISOString();
-        const when = formatManilaFull(lastIso);
-        el.textContent = annotateFallback ? `Last updated: ${when} (municipality scope)` : `Last updated: ${when}`;
+    // Clear overlay if data is present
+    const hasData = (() => {
+      const s = merged.series || {};
+      for (const key of ['t', 'h', 'r', 'wl', 'ws']) {
+        const arr = s[key] || [];
+        if (arr.some(v => v != null && typeof v === 'number' && !isNaN(v))) return true;
       }
-    } catch (e) { /* ignore */ }
+      return false;
+    })();
 
-    // Clear overlays
-    clearChartOverlay();
+    if (hasData) {
+      clearChartOverlay();
+    } else {
+      showTrendsNoData();
+    }
   }
 
   // ------- Chart overlay helpers (loading / no data) -------
@@ -1583,8 +1464,8 @@
       }
     }
     } catch (e) {
-      // Recreate chart on any failure
-      recreateChart(state.chart?.data?.labels || [], series);
+      // On failure, just log it. Avoid recreating the chart which is unstable.
+      console.error("Error applying chart scaling:", e);
     }
   }
 
@@ -1608,16 +1489,14 @@
     const rangeToDays = (r) => r === '1w' ? 7 : r === '1m' ? 30 : r === '1y' ? 365 : null;
     const days = rangeToDays(range);
     // Build URL: use limit for 'latest', use days otherwise
-    let url = `/api/chart-data/?type=${encodeURIComponent(type)}&ts=${Date.now()}`;
+    let url = `/api/chart-data/?type=${encodeURIComponent(type)}`;
     if (days) {
       url += `&days=${days}`;
     } else {
       url += `&limit=10`;
     }
-    const includeMunicipality = opts.includeMunicipality !== false;
-    if (includeMunicipality && state.municipalityId) url += `&municipality_id=${state.municipalityId}`;
-    const includeBarangay = opts.includeBarangay !== false;
-    if (includeBarangay && state.barangayId) url += `&barangay_id=${state.barangayId}`;
+    if (state.municipalityId) url += `&municipality_id=${state.municipalityId}`;
+    if (state.barangayId) url += `&barangay_id=${state.barangayId}`;
     try { console.debug('[Trends] GET', url); } catch(e) {}
 
     const doFetch = (u) => fetch(u, { headers: { 'Accept': 'application/json' }})
@@ -1645,17 +1524,7 @@
         return { labels: labels.slice(0, n), labelsManila: labelsManila.slice(0, Math.min(labelsManila.length, n)), values: values.slice(0, n) };
       });
 
-    // First attempt with the chosen strategy; if it yields no data and we used limit, retry with days=1 as a fallback
     return doFetch(url)
-      .then(result => {
-        if ((!result.labels || result.labels.length === 0) && !days) {
-          // Retry with a simple 1-day window which the backend also supports
-          const retryUrl = url.replace(/&limit=10/, '') + '&days=1';
-          try { console.debug('[Trends] retrying with days=1', retryUrl); } catch(e) {}
-          return doFetch(retryUrl);
-        }
-        return result;
-      })
       .catch(err => {
         try { console.warn('[Trends] chart-data fetch failed:', err && err.message ? err.message : err); } catch(e) {}
         return { labels: [], labelsManila: [], values: [] };
